@@ -1,79 +1,62 @@
 {% extends "base.html" %}
 
-{% block title %}Seleção de Squad - EVM Web{% endblock %}
+{% block title %}Selecionar Squad - EVM Web{% endblock %}
+{% block page_title %}Selecionar Squad{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="mb-2">🎯 Selecionar Squad</h2>
-        <p class="text-muted">Passo 2: Escolha uma squad para configurar o planejamento</p>
-    </div>
+<div class="page-intro">
+    <h2>Escolha a squad que deseja analisar.</h2>
+    <p>A navegação lateral continua disponível, mas aqui você pode comparar as squads antes de abrir uma delas.</p>
 </div>
 
-<!-- Alerts -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<section class="dashboard-grid">
+    <div class="card span-8">
+        <div class="card-header">Squads Disponíveis</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Squad</th>
+                            <th>Membros</th>
+                            <th>Custo mensal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for squad_name, squad_data in squads.items() %}
+                        <tr>
+                            <td><strong>{{ squad_name }}</strong></td>
+                            <td>{{ squad_data.members|length }}</td>
+                            <td>{{ squad_data.total_cost | currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
-
-<!-- Card Seleção -->
-<div class="card mb-4">
-    <div class="card-header">
-        📌 Squads Disponíveis ({{ squads|length }})
-    </div>
-    <div class="card-body">
-        <div class="table-responsive mb-3">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Squad</th>
-                        <th>Membros</th>
-                        <th>Custo Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for squad_name, squad_data in squads.items() %}
-                    <tr>
-                        <td><strong>{{ squad_name }}</strong></td>
-                        <td>{{ squad_data.members|length }}</td>
-                        <td>{{ squad_data.total_cost | currency }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
-        <form method="POST" class="row g-3 align-items-end">
-            <div class="col-md-8">
-                <label class="form-label">Selecione uma squad:</label>
-                <select class="form-select form-select-lg" name="selected_squad" required>
-                    <option value="">-- Escolha uma squad --</option>
-                    {% for squad_name in squads %}
+    </div>
+
+    <div class="card span-4">
+        <div class="card-header">Ativar Squad</div>
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Squad</label>
+                    <select class="form-select" name="selected_squad" required>
+                        <option value="">Escolha uma squad</option>
+                        {% for squad_name in squads %}
                         <option value="{{ squad_name }}">{{ squad_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-success w-100">
-                    ✓ Selecionar
-                </button>
-            </div>
-        </form>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">Abrir squad</button>
+                </div>
+                <div class="col-12">
+                    <a href="{{ url_for('routes.dashboard') }}" class="btn btn-outline-secondary w-100">Voltar ao dashboard</a>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
-
-<!-- Botão Voltar -->
-<div class="row mt-4">
-    <div class="col-12">
-        <a href="{{ url_for('routes.upload_file') }}" class="btn btn-outline-secondary">
-            ← Voltar ao Upload
-        </a>
-    </div>
-</div>
-
+</section>
 {% endblock %}

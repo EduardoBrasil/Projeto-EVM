@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Planejamento - EVM Web{% endblock %}
+{% block page_title %}Planejamento da Squad{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -281,41 +282,8 @@
         </div>
     </div>
 </div>
-{% endif %}
-
-<!-- Gráficos -->
-{% if history and history|length > 0 %}
-<div class="card mb-4">
-    <div class="card-header">
-        📈 Gráfico Cumulativo - PV, EV e AC
-    </div>
-    <div class="card-body text-center">
-        <img src="{{ url_for('routes.generate_cumulative_chart') }}" alt="Gráfico Cumulativo de PV, EV e AC" style="max-width: 100%; height: auto;">
-    </div>
-</div>
 
 <div class="card mb-4">
-    <div class="card-header">
-        📉 Gráfico de CPI
-    </div>
-    <div class="card-body text-center">
-        <img src="{{ url_for('routes.generate_cpi_chart') }}" alt="Gráfico de CPI" style="max-width: 100%; height: auto;">
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-header">
-        📊 Gráfico de SPI
-    </div>
-    <div class="card-body text-center">
-        <img src="{{ url_for('routes.generate_spi_chart') }}" alt="Gráfico de SPI" style="max-width: 100%; height: auto;">
-    </div>
-</div>
-{% endif %}
-
-<!-- Tabela de Histórico -->
-{% if history %}
-<div class="card">
     <div class="card-header">
         📋 Histórico de Sprints
     </div>
@@ -325,6 +293,9 @@
                 <thead>
                     <tr>
                         <th>Sprint</th>
+                        <th>Planejado</th>
+                        <th>Concluído</th>
+                        <th>Adicionado</th>
                         <th>PV (R$)</th>
                         <th>EV (R$)</th>
                         <th>AC (R$)</th>
@@ -333,12 +304,16 @@
                         <th>CPI</th>
                         <th>SPI</th>
                         <th>Status</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for record in history %}
                     <tr>
                         <td><strong>#{{ record.sprint_no }}</strong></td>
+                        <td>{{ record.plan_points | round(0) }}</td>
+                        <td>{{ record.done_points | round(0) }}</td>
+                        <td>{{ record.added_points | round(0) }}</td>
                         <td>{{ record.PV | currency }}</td>
                         <td>{{ record.EV | currency }}</td>
                         <td>{{ record.AC | currency }}</td>
@@ -359,10 +334,100 @@
                                 {{ record.status }}
                             </span>
                         </td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-sprint-{{ record.sprint_no }}" aria-expanded="false" aria-controls="edit-sprint-{{ record.sprint_no }}">
+                                    Editar
+                                </button>
+                                <form method="POST" action="{{ url_for('routes.delete_sprint', sprint_no=record.sprint_no) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Excluir a sprint #{{ record.sprint_no }}?');">
+                                        Excluir
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="edit-sprint-{{ record.sprint_no }}">
+                        <td colspan="13" class="bg-light">
+                            <form method="POST" action="{{ url_for('routes.update_sprint', sprint_no=record.sprint_no) }}" class="row g-3 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label">Pontos Planejados</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_plan_points" value="{{ record.plan_points }}" step="1" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Pontos Concluídos</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_done_points" value="{{ record.done_points }}" step="1" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Pontos Adicionados</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_added_points" value="{{ record.added_points }}" step="1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Valor Planejado (PV)</label>
+                                    <input type="text" class="form-control form-control-sm" name="sprint_planned_value" value="{{ '{:,.2f}'.format(record.PV).replace(',', 'X').replace('.', ',').replace('X', '.') }}" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Custo Real (AC)</label>
+                                    <input type="text" class="form-control form-control-sm" name="sprint_actual_cost" value="{{ '{:,.2f}'.format(record.AC).replace(',', 'X').replace('.', ',').replace('X', '.') }}" required>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-sm btn-primary">Salvar alterações</button>
+                                </div>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <span>📈 Gráfico Cumulativo - PV, EV e AC</span>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-cumulative" aria-expanded="false" aria-controls="collapse-cumulative">
+                Expandir / Recolher
+            </button>
+        </div>
+    </div>
+    <div id="collapse-cumulative" class="collapse">
+        <div class="card-body text-center">
+            <img src="{{ url_for('routes.generate_cumulative_chart', v=history|length ~ '-' ~ last_metrics.sprint_no ~ '-' ~ last_metrics.PV) }}" alt="Gráfico Cumulativo de PV, EV e AC" style="max-width: 100%; height: auto;">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <span>📉 Gráfico de CPI</span>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-cpi" aria-expanded="false" aria-controls="collapse-cpi">
+                Expandir / Recolher
+            </button>
+        </div>
+    </div>
+    <div id="collapse-cpi" class="collapse">
+        <div class="card-body text-center">
+            <img src="{{ url_for('routes.generate_cpi_chart', v=history|length ~ '-' ~ last_metrics.CPI) }}" alt="Gráfico de CPI" style="max-width: 100%; height: auto;">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <span>📊 Gráfico de SPI</span>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-spi" aria-expanded="false" aria-controls="collapse-spi">
+                Expandir / Recolher
+            </button>
+        </div>
+    </div>
+    <div id="collapse-spi" class="collapse">
+        <div class="card-body text-center">
+            <img src="{{ url_for('routes.generate_spi_chart', v=history|length ~ '-' ~ last_metrics.SPI) }}" alt="Gráfico de SPI" style="max-width: 100%; height: auto;">
         </div>
     </div>
 </div>

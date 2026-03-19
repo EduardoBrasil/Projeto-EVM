@@ -4,20 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}EVM Web{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-dark">
-        <div class="container-fluid">
-            <span class="navbar-brand">📊 EVM Web Project</span>
-        </div>
-    </nav>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand-block">
+                <div class="brand-mark">EVM</div>
+                <div>
+                    <div class="brand-title">Project Pulse</div>
+                    <div class="brand-subtitle">Planejamento e acompanhamento</div>
+                </div>
+            </div>
 
-    <!-- Main Container -->
-    <div class="container container-main">
-        {% block content %}{% endblock %}
+            <nav class="nav-stack">
+                <a class="nav-link-custom {% if request.endpoint == 'routes.dashboard' %}active{% endif %}" href="{{ url_for('routes.dashboard') if nav_squads else url_for('routes.upload_file') }}">
+                    Dashboard
+                </a>
+                <a class="nav-link-custom {% if request.endpoint == 'routes.upload_file' %}active{% endif %}" href="{{ url_for('routes.upload_file') }}">
+                    Importar Planilha
+                </a>
+                {% if nav_squads %}
+                <a class="nav-link-custom {% if request.endpoint == 'routes.select_squad' %}active{% endif %}" href="{{ url_for('routes.select_squad') }}">
+                    Selecionar Squad
+                </a>
+                {% endif %}
+                {% if nav_current_squad %}
+                <a class="nav-link-custom {% if request.endpoint == 'routes.setup' %}active{% endif %}" href="{{ url_for('routes.setup') }}">
+                    Configuração da Squad
+                </a>
+                <a class="nav-link-custom {% if request.endpoint == 'routes.plan' %}active{% endif %}" href="{{ url_for('routes.plan') }}">
+                    Planejamento da Squad
+                </a>
+                {% endif %}
+            </nav>
+
+            {% if nav_squads %}
+            <div class="sidebar-section">
+                <div class="sidebar-label">Squads</div>
+                <div class="squad-list">
+                    {% for squad_name in nav_squads %}
+                    <a class="squad-link {% if squad_name == nav_current_squad %}active{% endif %}" href="{{ url_for('routes.squad_dashboard', squad_name=squad_name) }}">
+                        <span>{{ squad_name }}</span>
+                        {% if squad_name == nav_current_squad %}
+                        <span class="squad-badge">Ativa</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div>
+                    <div class="eyebrow">Earned Value Management</div>
+                    <h1 class="topbar-title">{% block page_title %}Visão do Projeto{% endblock %}</h1>
+                </div>
+                <div class="topbar-context">
+                    <span class="context-chip">Squad ativa: {{ nav_current_squad or 'Nenhuma' }}</span>
+                </div>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="content-frame">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

@@ -12,7 +12,7 @@ Data: 2026
 """
 
 import os
-from flask import Flask
+from flask import Flask, session
 from routes import routes_bp
 
 # Configuração da aplicação
@@ -39,6 +39,16 @@ def format_currency(value):
         return "R$ 0,00"
 
 app.jinja_env.filters['currency'] = format_currency
+
+
+@app.context_processor
+def inject_navigation_context():
+    """Disponibiliza contexto global para navegação lateral."""
+    squads_data = session.get('squads_data', {})
+    return {
+        'nav_squads': list(squads_data.keys()),
+        'nav_current_squad': session.get('current_squad_name'),
+    }
 
 if __name__ == '__main__':
     app.run(debug=True)

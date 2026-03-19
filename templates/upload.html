@@ -1,104 +1,92 @@
 {% extends "base.html" %}
 
-{% block title %}Upload de Squads - EVM Web{% endblock %}
+{% block title %}Importar Squads - EVM Web{% endblock %}
+{% block page_title %}Importar Estrutura das Squads{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="mb-2">📁 Carregar Planilha de Squads</h2>
-        <p class="text-muted">Passo 1: Upload do arquivo com dados das squads</p>
+<section class="dashboard-banner">
+    <div>
+        <div class="eyebrow">Etapa 1</div>
+        <div class="banner-title">Comece carregando a planilha base das squads.</div>
+        <p class="banner-copy">
+            O sistema organiza as squads a partir do arquivo importado e depois mantém um planejamento independente para cada uma.
+        </p>
     </div>
-</div>
-
-<!-- Alerts -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
-
-<!-- Card Upload -->
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="bi bi-file-excel"></i> Selecionar Arquivo
+    <div class="summary-strip">
+        <div class="summary-pill">
+            <div class="label">Formatos</div>
+            <div class="value">XLSX · XLS · CSV</div>
+        </div>
+        <div class="summary-pill">
+            <div class="label">Agrupamento</div>
+            <div class="value">Por Squad</div>
+        </div>
+        <div class="summary-pill">
+            <div class="label">Saída</div>
+            <div class="value">Dashboard inicial</div>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="POST" enctype="multipart/form-data" class="row">
-            <div class="col-md-8">
-                <div class="mb-3">
+</section>
+
+<section class="dashboard-grid">
+    <div class="card span-6">
+        <div class="card-header">Carregar Arquivo</div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data" class="row g-3">
+                <div class="col-12">
                     <label class="form-label">Arquivo Excel ou CSV</label>
-                    <input type="file" class="form-control form-control-lg" name="file" 
-                           accept=".xlsx,.xls,.csv" required>
-                    <small class="text-muted">Formatos suportados: Excel (.xlsx, .xls) ou CSV</small>
+                    <input type="file" class="form-control form-control-lg" name="file" accept=".xlsx,.xls,.csv" required>
+                    <small class="text-muted">Use uma planilha com todas as squads; o sistema separa o planejamento de cada uma.</small>
                 </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">Carregar planilha</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card span-6">
+        <div class="card-header">Estrutura Esperada</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>SQUAD</th>
+                            <th>CARGO</th>
+                            <th>ÁREA</th>
+                            <th>QTDE</th>
+                            <th>Custo M H/H</th>
+                            <th>Preço M/HH</th>
+                            <th>TOTAL GRUPO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Squad A</td>
+                            <td>Developer Senior</td>
+                            <td>Backend</td>
+                            <td>2</td>
+                            <td>5000</td>
+                            <td>500</td>
+                            <td>10000</td>
+                        </tr>
+                        <tr>
+                            <td>Squad B</td>
+                            <td>QA Analyst</td>
+                            <td>Quality</td>
+                            <td>1</td>
+                            <td>3200</td>
+                            <td>320</td>
+                            <td>3200</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    ⬆️ Carregar Arquivo
-                </button>
+            <div class="mt-3 text-muted small">
+                O app aceita diferentes codificações e agrupa automaticamente as linhas com o mesmo nome de squad.
             </div>
-        </form>
-    </div>
-</div>
-
-<!-- Info Box Estrutura Esperada -->
-<div class="card">
-    <div class="card-header">
-        📋 Estrutura Esperada do Arquivo
-    </div>
-    <div class="card-body">
-        <p class="mb-3"><strong>O arquivo deve conter as seguintes colunas:</strong></p>
-        <div class="table-responsive">
-            <table class="table table-sm table-bordered">
-                <thead class="table-light">
-                    <tr>
-                        <th>SQUAD</th>
-                        <th>CARGO</th>
-                        <th>ÁREA</th>
-                        <th>QTDE</th>
-                        <th>Custo M H/H</th>
-                        <th>Preço M/HH</th>
-                        <th>TOTAL GRUPO</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Squad A</td>
-                        <td>Developer Senior</td>
-                        <td>Backend</td>
-                        <td>2</td>
-                        <td>5000</td>
-                        <td>500</td>
-                        <td>10000</td>
-                    </tr>
-                    <tr>
-                        <td>Squad A</td>
-                        <td>Developer Junior</td>
-                        <td>Frontend</td>
-                        <td>3</td>
-                        <td>3000</td>
-                        <td>300</td>
-                        <td>9000</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mt-4 alert alert-info">
-            <strong>💡 Dica:</strong> Você pode ter múltiplas squads no mesmo arquivo. 
-            Elas serão agrupadas pela coluna <code>SQUAD</code>.
-        </div>
-
-        <div class="alert alert-warning mt-3">
-            <strong>⚠️ Codificação:</strong> O arquivo pode estar em diferentes codificações (UTF-8, Latin-1, CP1252, ISO-8859-1). 
-            O sistema tenta detectar automaticamente a codificação correta.
         </div>
     </div>
-</div>
-
+</section>
 {% endblock %}

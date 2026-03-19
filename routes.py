@@ -138,6 +138,73 @@ def save_current_squad_workspace(workspace):
     session.modified = True
 
 
+def get_or_create_workspace_for_squad(squad_name):
+    """Retorna o workspace de uma squad específica sem depender da navegação atual."""
+    current_squad = get_current_squad_name()
+    session['current_squad_name'] = squad_name
+    workspace = ensure_current_squad_workspace()
+    session['current_squad_name'] = current_squad
+    session.modified = True
+    return workspace
+
+
+def calculate_workspace_summary(squad_name, workspace, squad_info):
+    """Monta um resumo executivo da squad para o dashboard."""
+    base_total_cost = squad_info.get('total_cost', 0)
+    file_members = workspace.get('squad_members_from_file', squad_info.get('members', []))
+    members = workspace.get('members', [])
+    manual_cost = sum(m.get('salary', 0) + 160 * m.get('hourly', 0) for m in members)
+    squad_cost = workspace.get('squad_cost', base_total_cost + manual_cost)
+    releases = normalize_releases(workspace.get('releases', []))
+    total_points = sum(r.get('points', 0) for r in releases)
+    total_sprints = sum(r.get('sprints', 0) for r in releases)
+    sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
+    bac = sprint_cost * total_sprints
+    value_per_point = bac / total_points if total_points > 0 else 0
+    history = recalculate_history(workspace.get('history', []), value_per_point, total_points)
+    last_metrics = history[-1] if history else None
+    projection = calculate_release_projection(history, bac, total_sprints)
+
+    return {
+        'name': squad_name,
+        'members_from_file': len(file_members),
+        'manual_members': len(members),
+        'squad_cost': squad_cost,
+        'sprint_cost': sprint_cost,
+        'releases_count': len(releases),
+        'total_points': total_points,
+        'total_sprints': total_sprints,
+        'history_count': len(history),
+        'bac': bac,
+        'completion_percentage': last_metrics.get('completion_percentage', 0) if last_metrics else 0,
+        'status': last_metrics.get('status', 'Não iniciado') if last_metrics else 'Não iniciado',
+        'last_metrics': last_metrics,
+        'projection': projection,
+    }
+
+
+def get_workspace_planning_context(workspace):
+    """Calcula contexto consolidado do planejamento da squad."""
+    releases = normalize_releases(workspace.get('releases', []))
+    squad_cost = workspace.get('squad_cost', 0)
+    total_points = sum(r.get('points', 0) for r in releases)
+    total_sprints = sum(r.get('sprints', 0) for r in releases)
+    sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
+    bac = sprint_cost * total_sprints
+    value_per_point = bac / total_points if total_points > 0 else 0
+    history = recalculate_history(workspace.get('history', []), value_per_point, total_points)
+    return {
+        'releases': releases,
+        'squad_cost': squad_cost,
+        'total_points': total_points,
+        'total_sprints': total_sprints,
+        'sprint_cost': sprint_cost,
+        'bac': bac,
+        'value_per_point': value_per_point,
+        'history': history,
+    }
+
+
 def build_sprint_record(
     sprint_number,
     planned_points,
@@ -272,12 +339,98 @@ def calculate_release_projection(history, bac, total_sprints):
     }
 
 
+def _get_planning_totals(workspace):
+    """Retorna totais consolidados do planejamento atual."""
+    releases = normalize_releases(workspace.get('releases', []))
+    squad_cost = workspace.get('squad_cost', 0)
+    total_release_points = sum(r.get('points', 0) for r in releases)
+    total_release_sprints = sum(r.get('sprints', 0) for r in releases)
+    sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
+    bac = sprint_cost * total_release_sprints
+    value_per_point = bac / total_release_points if total_release_points > 0 else 0
+    return {
+        'releases': releases,
+        'total_release_points': total_release_points,
+        'total_release_sprints': total_release_sprints,
+        'value_per_point': value_per_point,
+    }
+
+
 @routes_bp.route('/', methods=['GET'])
 def index():
-    """Redireciona para upload de archivos ou setup."""
+    """Redireciona para o dashboard inicial ou upload."""
     if 'squads_data' in session and session['squads_data']:
-        return redirect(url_for('routes.select_squad'))
+        return redirect(url_for('routes.dashboard'))
     return redirect(url_for('routes.upload_file'))
+
+
+@routes_bp.route('/dashboard', methods=['GET'])
+def dashboard():
+    """Página inicial com resumo de todas as squads."""
+    squads_data = session.get('squads_data', {})
+    if not squads_data:
+        return redirect(url_for('routes.upload_file'))
+
+    current_squad = get_current_squad_name()
+    summaries = []
+
+    if current_squad is None:
+        current_squad = next(iter(squads_data.keys()), None)
+        if current_squad is not None:
+            session['current_squad_name'] = current_squad
+            session.modified = True
+
+    for squad_name, squad_info in squads_data.items():
+        workspace = get_or_create_workspace_for_squad(squad_name)
+        summaries.append(calculate_workspace_summary(squad_name, workspace, squad_info))
+
+    current_summary = next((item for item in summaries if item['name'] == current_squad), None)
+
+    return render_template(
+        'dashboard.html',
+        summaries=summaries,
+        current_squad=current_squad,
+        current_summary=current_summary,
+    )
+
+
+@routes_bp.route('/dashboard/squad/<squad_name>', methods=['GET'])
+def squad_dashboard(squad_name):
+    """Dashboard detalhado de uma squad específica."""
+    squads_data = session.get('squads_data', {})
+    if squad_name not in squads_data:
+        flash('Squad inválida.', 'error')
+        return redirect(url_for('routes.dashboard'))
+
+    session['current_squad_name'] = squad_name
+    workspace = get_or_create_workspace_for_squad(squad_name)
+    session.modified = True
+
+    current_summary = calculate_workspace_summary(squad_name, workspace, squads_data[squad_name])
+    return render_template(
+        'squad_dashboard.html',
+        current_squad=squad_name,
+        current_summary=current_summary,
+    )
+
+
+@routes_bp.route('/switch_squad/<squad_name>', methods=['GET'])
+def switch_squad(squad_name):
+    """Troca a squad ativa para navegação lateral e páginas de trabalho."""
+    squads_data = session.get('squads_data', {})
+    if squad_name not in squads_data:
+        flash('Squad inválida.', 'error')
+        return redirect(url_for('routes.dashboard'))
+
+    session['current_squad_name'] = squad_name
+    ensure_current_squad_workspace()
+    session.modified = True
+
+    next_page = request.args.get('next', 'routes.dashboard')
+    try:
+        return redirect(url_for(next_page))
+    except Exception:
+        return redirect(url_for('routes.dashboard'))
 
 
 @routes_bp.route('/upload', methods=['GET', 'POST'])
@@ -591,19 +744,16 @@ def add_sprint():
     if workspace.get('squad_cost', 0) <= 0:
         return redirect(url_for('routes.setup'))
 
-    releases = normalize_releases(workspace.get('releases', []))
+    planning_totals = _get_planning_totals(workspace)
+    releases = planning_totals['releases']
     
     # Se não houver releases definidas, redirecionar para criar
     if not releases:
         flash('Por favor, configure as releases primeiro.', 'warning')
         return redirect(url_for('routes.plan'))
 
-    squad_cost = workspace.get('squad_cost', 0)
-    total_release_points = sum(r['points'] for r in releases)
-    total_release_sprints = sum(r['sprints'] for r in releases)
-    sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
-    bac = sprint_cost * total_release_sprints
-    value_per_point = bac / total_release_points if total_release_points > 0 else 0
+    total_release_points = planning_totals['total_release_points']
+    value_per_point = planning_totals['value_per_point']
 
     # Obter dados do formulário
     try:
@@ -642,6 +792,69 @@ def add_sprint():
     return redirect(url_for('routes.plan'))
 
 
+@routes_bp.route('/update_sprint/<int:sprint_no>', methods=['POST'])
+def update_sprint(sprint_no):
+    """Atualiza um registro existente da sprint e recalcula o histórico."""
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+
+    planning_totals = _get_planning_totals(workspace)
+    if not planning_totals['releases']:
+        flash('Por favor, configure as releases antes de editar a sprint.', 'warning')
+        return redirect(url_for('routes.plan'))
+
+    history = list(workspace.get('history', []))
+    sprint_index = sprint_no - 1
+    if sprint_index < 0 or sprint_index >= len(history):
+        flash('Sprint não encontrada para edição.', 'error')
+        return redirect(url_for('routes.plan'))
+
+    try:
+        history[sprint_index]['plan_points'] = float(request.form.get('sprint_plan_points', 0))
+        history[sprint_index]['done_points'] = float(request.form.get('sprint_done_points', 0))
+        history[sprint_index]['added_points'] = float(request.form.get('sprint_added_points', 0))
+        history[sprint_index]['PV'] = parse_brazilian_float(request.form.get('sprint_planned_value', 0))
+        history[sprint_index]['AC'] = parse_brazilian_float(request.form.get('sprint_actual_cost', 0))
+    except (ValueError, TypeError):
+        flash('Erro ao processar os dados da sprint.', 'error')
+        return redirect(url_for('routes.plan'))
+
+    workspace['history'] = recalculate_history(
+        history,
+        planning_totals['value_per_point'],
+        planning_totals['total_release_points'],
+    )
+    save_current_squad_workspace(workspace)
+    flash(f'Sprint {sprint_no} atualizada com sucesso!', 'success')
+    return redirect(url_for('routes.plan'))
+
+
+@routes_bp.route('/delete_sprint/<int:sprint_no>', methods=['POST'])
+def delete_sprint(sprint_no):
+    """Exclui uma sprint do histórico atual da squad."""
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+
+    planning_totals = _get_planning_totals(workspace)
+    history = list(workspace.get('history', []))
+    sprint_index = sprint_no - 1
+    if sprint_index < 0 or sprint_index >= len(history):
+        flash('Sprint não encontrada para exclusão.', 'error')
+        return redirect(url_for('routes.plan'))
+
+    history.pop(sprint_index)
+    workspace['history'] = recalculate_history(
+        history,
+        planning_totals['value_per_point'],
+        planning_totals['total_release_points'],
+    )
+    save_current_squad_workspace(workspace)
+    flash(f'Sprint {sprint_no} excluída com sucesso!', 'success')
+    return redirect(url_for('routes.plan'))
+
+
 @routes_bp.route('/generate_chart')
 def generate_chart():
     """Mantido por compatibilidade; gera o gráfico acumulado principal."""
@@ -672,7 +885,8 @@ def _build_empty_chart_response(message='Sem dados para exibir'):
 def generate_cumulative_chart():
     """Gera um gráfico cumulativo com PV, EV e AC de todas as sprints."""
     workspace = ensure_current_squad_workspace()
-    history = workspace.get('history', []) if workspace else []
+    planning = get_workspace_planning_context(workspace) if workspace else {}
+    history = planning.get('history', [])
     
     if not history:
         return _build_empty_chart_response()
@@ -699,9 +913,10 @@ def generate_cumulative_chart():
     
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    ax.plot(sprints, pv_cumulative, marker='D', label='PV Cumulativo', linewidth=2, color='#f39c12')
-    ax.plot(sprints, ac_cumulative, marker='o', label='AC Cumulativo', linewidth=2, color='#e74c3c')
-    ax.plot(sprints, ev_cumulative, marker='s', label='EV Cumulativo', linewidth=2, color='#27ae60')
+    ax.plot(sprints, ac_cumulative, marker='o', label='AC Cumulativo', linewidth=2.4, color='#e74c3c', zorder=2)
+    ax.plot(sprints, ev_cumulative, marker='s', label='EV Cumulativo', linewidth=2.4, color='#27ae60', zorder=3)
+    ax.plot(sprints, pv_cumulative, marker='D', label='PV Cumulativo', linewidth=3.2, color='#f39c12', linestyle='-.', zorder=4)
+    ax.scatter(sprints, pv_cumulative, color='#f39c12', edgecolors='white', linewidths=1.1, s=70, zorder=5)
     ax.set_xlabel('Sprint', fontsize=12, fontweight='bold')
     ax.set_ylabel('Valor (R$)', fontsize=12, fontweight='bold')
     ax.set_title('Gráfico Cumulativo - PV, EV e AC', fontsize=14, fontweight='bold')
@@ -715,7 +930,8 @@ def generate_cumulative_chart():
 def generate_cpi_chart():
     """Gera um gráfico exclusivo do CPI."""
     workspace = ensure_current_squad_workspace()
-    history = workspace.get('history', []) if workspace else []
+    planning = get_workspace_planning_context(workspace) if workspace else {}
+    history = planning.get('history', [])
 
     if not history:
         return _build_empty_chart_response()
@@ -738,7 +954,8 @@ def generate_cpi_chart():
 def generate_spi_chart():
     """Gera um gráfico exclusivo do SPI."""
     workspace = ensure_current_squad_workspace()
-    history = workspace.get('history', []) if workspace else []
+    planning = get_workspace_planning_context(workspace) if workspace else {}
+    history = planning.get('history', [])
 
     if not history:
         return _build_empty_chart_response()
