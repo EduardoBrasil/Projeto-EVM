@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração - EVM Web{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-2">⚙️ Configuração da Squad: <strong>{{ current_squad }}</strong></h2>
+        <p class="text-muted">Passo 3: Visualize dados da squad e adicione membros extras (se necessário)</p>
+    </div>
+</div>
+
+<!-- Info Box Com Total da Squad -->
+<div class="grid-2 mb-4">
+    <div class="info-box">
+        <h6>💰 Custo da Planilha</h6>
+        <div class="amount">{{ file_cost | currency }}</div>
+    </div>
+    <div class="info-box">
+        <h6>➕ Custo Adicional (Manual)</h6>
+        <div class="amount">{{ manual_cost | currency }}</div>
+    </div>
+</div>
+
+<div class="info-box mb-4">
+    <div class="row text-center">
+        <div class="col">
+            <h6>💵 Custo Total da Squad</h6>
+                <div class="amount" style="font-size: 2rem;">{{ squad_cost | currency }}</div>
+<!-- Membros da Planilha -->
+{% if members_from_file %}
+<div class="card mb-4">
+    <div class="card-header">
+        📊 Membros Carregados da Planilha ({{ members_from_file|length }})
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Cargo</th>
+                        <th>Área</th>
+                        <th>Qtde</th>
+                        <th>Custo M H/H</th>
+                        <th>Preço M/HH</th>
+                        <th>Total</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members_from_file %}
+                    <tr>
+                        <td><strong>{{ member.cargo }}</strong></td>
+                        <td>{{ member.area }}</td>
+                        <td>{{ member.qtde }}</td>
+                        <td>{{ member.custo_mhh | currency }}</td>
+                        <td>{{ member.preco_mhh | currency }}</td>
+                        <td>{{ member.total_grupo | currency }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.remove_file_member', member_index=loop.index0) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" 
+                                        onclick="return confirm('Tem certeza que deseja remover este membro?')">
+                                    🗑️ Remover
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Adicionar Membros Manualmente -->
+<div class="card mb-4">
+    <div class="card-header">
+        ➕ Adicionar Membro Extra
+    </div>
+    <div class="card-body">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label">Cargo</label>
+                <input type="text" class="form-control" name="role" placeholder="Ex: Scrum Master" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Função</label>
+                <input type="text" class="form-control" name="function" placeholder="Ex: Gestão" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Salário base (R$)</label>
+                <input type="number" class="form-control" name="salary" placeholder="0.00" step="0.01">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Valor/hora (R$)</label>
+                <input type="number" class="form-control" name="hourly" placeholder="0.00" step="0.01">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    ➕ Adicionar Membro
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Membros Adicionados Manualmente -->
+{% if members %}
+<div class="card mb-4">
+    <div class="card-header">
+        👥 Membros Adicionados Manualmente ({{ members|length }})
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Cargo</th>
+                        <th>Função</th>
+                        <th>Salário Base</th>
+                        <th>Valor/Hora</th>
+                        <th>Custo Estimado</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    <tr>
+                        <td><strong>{{ member.role }}</strong></td>
+                        <td>{{ member.function }}</td>
+                        <td>{{ member.salary | currency }}</td>
+                        <td>{{ member.hourly | currency }}</td>
+                        <td>{{ (member.salary + 160 * member.hourly) | currency }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.remove_member', member_index=loop.index0) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remover este membro?');">🗑️ Remover</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Botões Navegação -->
+<div class="row mt-4 mb-4">
+    <div class="col-12 d-flex justify-content-between">
+        <a href="{{ url_for('routes.select_squad') }}" class="btn btn-outline-secondary">
+            ← Mudar Squad
+        </a>
+        <a href="{{ url_for('routes.plan') }}" class="btn btn-success btn-lg">
+            Próximo: Planejamento de Sprints →
+        </a>
+    </div>
+</div>
+
+{% endblock %}

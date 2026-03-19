@@ -1,0 +1,5 @@
+SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO
+Squad A,Developer Senior,Backend,2,5000,500,10000
+Squad A,Developer Junior,Frontend,3,3000,300,9000
+Squad B,DevOps,Infraestrutura,1,4000,400,4000
+Squad B,QA,Qualidade,2,2500,250,5000

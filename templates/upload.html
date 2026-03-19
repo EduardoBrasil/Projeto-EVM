@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Upload de Squads - EVM Web{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-2">📁 Carregar Planilha de Squads</h2>
+        <p class="text-muted">Passo 1: Upload do arquivo com dados das squads</p>
+    </div>
+</div>
+
+<!-- Alerts -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Card Upload -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-file-excel"></i> Selecionar Arquivo
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label class="form-label">Arquivo Excel ou CSV</label>
+                    <input type="file" class="form-control form-control-lg" name="file" 
+                           accept=".xlsx,.xls,.csv" required>
+                    <small class="text-muted">Formatos suportados: Excel (.xlsx, .xls) ou CSV</small>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    ⬆️ Carregar Arquivo
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Info Box Estrutura Esperada -->
+<div class="card">
+    <div class="card-header">
+        📋 Estrutura Esperada do Arquivo
+    </div>
+    <div class="card-body">
+        <p class="mb-3"><strong>O arquivo deve conter as seguintes colunas:</strong></p>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>SQUAD</th>
+                        <th>CARGO</th>
+                        <th>ÁREA</th>
+                        <th>QTDE</th>
+                        <th>Custo M H/H</th>
+                        <th>Preço M/HH</th>
+                        <th>TOTAL GRUPO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Squad A</td>
+                        <td>Developer Senior</td>
+                        <td>Backend</td>
+                        <td>2</td>
+                        <td>5000</td>
+                        <td>500</td>
+                        <td>10000</td>
+                    </tr>
+                    <tr>
+                        <td>Squad A</td>
+                        <td>Developer Junior</td>
+                        <td>Frontend</td>
+                        <td>3</td>
+                        <td>3000</td>
+                        <td>300</td>
+                        <td>9000</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 alert alert-info">
+            <strong>💡 Dica:</strong> Você pode ter múltiplas squads no mesmo arquivo. 
+            Elas serão agrupadas pela coluna <code>SQUAD</code>.
+        </div>
+
+        <div class="alert alert-warning mt-3">
+            <strong>⚠️ Codificação:</strong> O arquivo pode estar em diferentes codificações (UTF-8, Latin-1, CP1252, ISO-8859-1). 
+            O sistema tenta detectar automaticamente a codificação correta.
+        </div>
+    </div>
+</div>
+
+{% endblock %}
