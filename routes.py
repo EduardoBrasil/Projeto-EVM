@@ -84,6 +84,84 @@ def parse_brazilian_float(value):
     return 0.0
 
 
+def build_sprint_record(
+    sprint_number,
+    planned_points,
+    earned_points,
+    added_points,
+    actual_cost,
+    value_per_point,
+    cumulative_done_points,
+    total_release_points,
+    planned_value=None,
+):
+    """Monta um registro de sprint com métricas EVM consistentes."""
+    metrics = EVMCalculator.calculate_sprint_metrics(
+        planned_points=planned_points,
+        earned_points=earned_points,
+        actual_cost=actual_cost,
+        value_per_point=value_per_point,
+    )
+    if planned_value is not None:
+        metrics['PV'] = planned_value
+        metrics['SV'] = metrics['EV'] - planned_value
+        metrics['SPI'] = metrics['EV'] / planned_value if planned_value > 0 else 0
+
+    completion_percentage = (
+        (cumulative_done_points / total_release_points) * 100 if total_release_points > 0 else 0
+    )
+
+    return {
+        'sprint_no': sprint_number,
+        'plan_points': planned_points,
+        'done_points': earned_points,
+        'added_points': added_points,
+        'PV': metrics['PV'],
+        'EV': metrics['EV'],
+        'AC': metrics['AC'],
+        'CV': metrics['CV'],
+        'SV': metrics['SV'],
+        'CPI': round(metrics['CPI'], 2),
+        'SPI': round(metrics['SPI'], 2),
+        'status': metrics['status'],
+        'completion_percentage': round(completion_percentage, 2),
+    }
+
+
+def recalculate_history(history, value_per_point, total_release_points):
+    """Recalcula o histórico salvo na sessão usando as fórmulas corretas."""
+    recalculated_history = []
+    cumulative_done_points = 0.0
+
+    for index, record in enumerate(history, start=1):
+        planned_points = float(record.get('plan_points', 0) or 0)
+        done_points = float(record.get('done_points', 0) or 0)
+        added_points = float(record.get('added_points', 0) or 0)
+        actual_cost = parse_brazilian_float(record.get('AC', 0))
+        planned_value = (
+            parse_brazilian_float(record.get('PV', 0))
+            if record.get('PV') is not None
+            else None
+        )
+
+        cumulative_done_points += done_points
+        recalculated_history.append(
+            build_sprint_record(
+                sprint_number=index,
+                planned_points=planned_points,
+                earned_points=done_points,
+                added_points=added_points,
+                actual_cost=actual_cost,
+                value_per_point=value_per_point,
+                cumulative_done_points=cumulative_done_points,
+                total_release_points=total_release_points,
+                planned_value=planned_value,
+            )
+        )
+
+    return recalculated_history
+
+
 @routes_bp.route('/', methods=['GET'])
 def index():
     """Redireciona para upload de archivos ou setup."""
@@ -269,7 +347,9 @@ def plan():
     value_per_point = squad_cost / total_points if total_points > 0 else 0
     bac = squad_cost
 
-    history = session.get('history', [])
+    history = recalculate_history(session.get('history', []), value_per_point, total_points)
+    session['history'] = history
+    session.modified = True
     current_sprint = len(history) + 1
     last_metrics = history[-1] if history else {
         'PV': 0,
@@ -386,66 +466,38 @@ def add_sprint():
     if not releases:
         flash('Por favor, configure as releases primeiro.', 'warning')
         return redirect(url_for('routes.plan'))
-    
+
     squad_cost = session.get('squad_cost', 0)
     total_release_points = sum(r['points'] for r in releases)
+    value_per_point = squad_cost / total_release_points if total_release_points > 0 else 0
 
-    # Obter dados do formulário e converter formato brasileiro
+    # Obter dados do formulário
     try:
         sprint_plan_points = float(request.form.get('sprint_plan_points', 0))
         sprint_done_points = float(request.form.get('sprint_done_points', 0))
         sprint_added_points = float(request.form.get('sprint_added_points', 0))
         sprint_planned_value = parse_brazilian_float(request.form.get('sprint_planned_value', 0))
-        sprint_sprint_cost = parse_brazilian_float(request.form.get('sprint_sprint_cost', 0))
         sprint_actual_cost = parse_brazilian_float(request.form.get('sprint_actual_cost', 0))
     except (ValueError, TypeError):
         flash('Erro ao processar os valores inseridos.', 'error')
         return redirect(url_for('routes.plan'))
 
-    # Adicionar ao histórico
-    history = session.get('history', [])
+    # Adicionar ao histórico usando as fórmulas padrão do projeto
+    history = recalculate_history(session.get('history', []), value_per_point, total_release_points)
     sprint_number = len(history) + 1
-    
-    # Cálculos de EVM usando os valores inseridos diretamente
-    pv = sprint_planned_value  # Planned Value (valor planejado) - inserido pelo usuário
-    ev = sprint_sprint_cost    # Earned Value (custo da sprint realizada) - inserido pelo usuário
-    ac = sprint_actual_cost    # Actual Cost (custo real) - inserido pelo usuário
-    
-    cv = ev - ac  # Cost Variance
-    sv = ev - pv  # Schedule Variance
-    cpi = ev / ac if ac > 0 else 0  # Cost Performance Index
-    spi = ev / pv if pv > 0 else 0  # Schedule Performance Index
-    
-    # Determinar status
-    if cpi >= 1 and spi >= 1:
-        status = "✓ OK"
-    elif cpi < 1 and spi < 1:
-        status = "⚠️ Acima do custo e atrasado"
-    elif cpi < 1:
-        status = "⚠️ Acima do custo"
-    else:
-        status = "⚠️ Atrasado"
-    
-    # Calcular porcentagem concluída do projeto
-    total_history_done_points = sum(h.get('done_points', 0) for h in history)
-    total_done_points = total_history_done_points + sprint_done_points
-    project_completion_percentage = (total_done_points / total_release_points * 100) if total_release_points > 0 else 0
+    total_done_points = sum(h.get('done_points', 0) for h in history) + sprint_done_points
 
-    record = {
-        'sprint_no': sprint_number,
-        'plan_points': sprint_plan_points,
-        'done_points': sprint_done_points,
-        'added_points': sprint_added_points,
-        'PV': pv,
-        'EV': ev,
-        'AC': ac,
-        'CV': cv,
-        'SV': sv,
-        'CPI': round(cpi, 2),
-        'SPI': round(spi, 2),
-        'status': status,
-        'completion_percentage': round(project_completion_percentage, 2),
-    }
+    record = build_sprint_record(
+        sprint_number=sprint_number,
+        planned_points=sprint_plan_points,
+        earned_points=sprint_done_points,
+        added_points=sprint_added_points,
+        actual_cost=sprint_actual_cost,
+        value_per_point=value_per_point,
+        cumulative_done_points=total_done_points,
+        total_release_points=total_release_points,
+        planned_value=sprint_planned_value,
+    )
 
     history.append(record)
     session['history'] = history
@@ -458,57 +510,114 @@ def add_sprint():
 
 @routes_bp.route('/generate_chart')
 def generate_chart():
-    """Gera um gráfico cumulativo com AC, EV e CV de todas as sprints."""
+    """Mantido por compatibilidade; gera o gráfico acumulado principal."""
+    return generate_cumulative_chart()
+
+
+def _build_chart_response(fig):
+    """Converte a figura do matplotlib em resposta HTTP PNG."""
+    img = io.BytesIO()
+    fig.tight_layout()
+    fig.savefig(img, format='png', dpi=100, bbox_inches='tight')
+    img.seek(0)
+    plt.close(fig)
+    response = send_file(img, mimetype='image/png')
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return response
+
+
+def _build_empty_chart_response(message='Sem dados para exibir'):
+    """Retorna um PNG válido mesmo quando não há histórico."""
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.text(0.5, 0.5, message, ha='center', va='center', fontsize=14, color='#7f8c8d')
+    ax.axis('off')
+    return _build_chart_response(fig)
+
+
+@routes_bp.route('/generate_cumulative_chart')
+def generate_cumulative_chart():
+    """Gera um gráfico cumulativo com PV, EV e AC de todas as sprints."""
     history = session.get('history', [])
     
     if not history:
-        # Retornar imagem em branco se não há histórico
-        return send_file(io.BytesIO(), mimetype='image/png')
+        return _build_empty_chart_response()
     
-    # Extrair dados do histórico
     sprints = [str(record['sprint_no']) for record in history]
+    pv_values = [record['PV'] for record in history]
     ac_values = [record['AC'] for record in history]
     ev_values = [record['EV'] for record in history]
-    cv_values = [record['CV'] for record in history]
     
-    # Calcular valores cumulativos
+    pv_cumulative = []
     ac_cumulative = []
     ev_cumulative = []
+    cumsum_pv = 0
     cumsum_ac = 0
     cumsum_ev = 0
     
-    for ac, ev in zip(ac_values, ev_values):
+    for pv, ac, ev in zip(pv_values, ac_values, ev_values):
+        cumsum_pv += pv
         cumsum_ac += ac
         cumsum_ev += ev
+        pv_cumulative.append(cumsum_pv)
         ac_cumulative.append(cumsum_ac)
         ev_cumulative.append(cumsum_ev)
     
-    # Criar figura
     fig, ax = plt.subplots(figsize=(12, 6))
-    
-    # Plotar linhas
+
+    ax.plot(sprints, pv_cumulative, marker='D', label='PV Cumulativo', linewidth=2, color='#f39c12')
     ax.plot(sprints, ac_cumulative, marker='o', label='AC Cumulativo', linewidth=2, color='#e74c3c')
     ax.plot(sprints, ev_cumulative, marker='s', label='EV Cumulativo', linewidth=2, color='#27ae60')
-    ax.plot(sprints, cv_values, marker='^', label='CV (Variação de Custo)', linewidth=2, color='#3498db', linestyle='--')
-    
-    # Configurar eixos
     ax.set_xlabel('Sprint', fontsize=12, fontweight='bold')
     ax.set_ylabel('Valor (R$)', fontsize=12, fontweight='bold')
-    ax.set_title('Gráfico Cumulativo - AC, EV e Variação de Custo', fontsize=14, fontweight='bold')
+    ax.set_title('Gráfico Cumulativo - PV, EV e AC', fontsize=14, fontweight='bold')
     ax.legend(loc='best', fontsize=10)
     ax.grid(True, alpha=0.3)
-    
-    # Formatar eixo Y como moeda
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'R$ {x:,.0f}'))
-    
-    # Salvar em bytesio
-    img = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(img, format='png', dpi=100, bbox_inches='tight')
-    img.seek(0)
-    plt.close()
-    
-    return send_file(img, mimetype='image/png')
+    return _build_chart_response(fig)
+
+
+@routes_bp.route('/generate_cpi_chart')
+def generate_cpi_chart():
+    """Gera um gráfico exclusivo do CPI."""
+    history = session.get('history', [])
+
+    if not history:
+        return _build_empty_chart_response()
+
+    sprints = [str(record['sprint_no']) for record in history]
+    cpi_values = [record['CPI'] for record in history]
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.plot(sprints, cpi_values, marker='^', linewidth=2, color='#3498db', label='CPI')
+    ax.axhline(1, color='#7f8c8d', linestyle='--', linewidth=1, label='Referência = 1')
+    ax.set_xlabel('Sprint', fontsize=12, fontweight='bold')
+    ax.set_ylabel('CPI', fontsize=12, fontweight='bold')
+    ax.set_title('Gráfico de CPI - Cost Performance Index', fontsize=14, fontweight='bold')
+    ax.legend(loc='best', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    return _build_chart_response(fig)
+
+
+@routes_bp.route('/generate_spi_chart')
+def generate_spi_chart():
+    """Gera um gráfico exclusivo do SPI."""
+    history = session.get('history', [])
+
+    if not history:
+        return _build_empty_chart_response()
+
+    sprints = [str(record['sprint_no']) for record in history]
+    spi_values = [record['SPI'] for record in history]
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.plot(sprints, spi_values, marker='v', linewidth=2, color='#8e44ad', label='SPI')
+    ax.axhline(1, color='#7f8c8d', linestyle='--', linewidth=1, label='Referência = 1')
+    ax.set_xlabel('Sprint', fontsize=12, fontweight='bold')
+    ax.set_ylabel('SPI', fontsize=12, fontweight='bold')
+    ax.set_title('Gráfico de SPI - Schedule Performance Index', fontsize=14, fontweight='bold')
+    ax.legend(loc='best', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    return _build_chart_response(fig)
 
 
 @routes_bp.route('/remove_member/<int:member_index>', methods=['POST'])
