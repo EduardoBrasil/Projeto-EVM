@@ -99,10 +99,14 @@
 </div>
 
 <!-- Info Boxes -->
-<div class="grid-2">
+<div class="grid-3">
     <div class="info-box">
-        <h6>💰 Custo Squad</h6>
+        <h6>💰 Custo Squad Mensal</h6>
         <div class="amount">{{ squad_cost | currency }}</div>
+    </div>
+    <div class="info-box">
+        <h6>🗓️ Custo por Sprint</h6>
+        <div class="amount">{{ sprint_cost | currency }}</div>
     </div>
     <div class="info-box">
         <h6>💵 BAC (Budget at Completion)</h6>
@@ -223,6 +227,55 @@
                     {% else %}
                         0%
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endif %}
+
+{% if history and history|length > 0 %}
+<div class="card mb-4">
+    <div class="card-header">
+        📌 Acompanhamento do Projeto
+    </div>
+    <div class="card-body">
+        <div class="grid-2">
+            <div class="metric-card">
+                <div class="label">Projeção de Custo Final</div>
+                <div class="value {% if projection.cost_variance_at_completion <= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ projection.eac | currency }}
+                </div>
+                <div class="small text-muted">
+                    Variação no fim da release: {{ projection.cost_variance_at_completion | currency }}
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Projeção de Prazo Final</div>
+                <div class="value {% if projection.delay_sprints <= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ projection.projected_total_sprints | round(2) }} sprints
+                </div>
+                <div class="small text-muted">
+                    Atraso estimado: {{ projection.delay_sprints | round(2) }} sprint(s)
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2 mt-3">
+            <div class="metric-card">
+                <div class="label">Variação Projetada de Custo</div>
+                <div class="value {% if projection.cost_variance_at_completion <= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ projection.cost_variance_at_completion | currency }}
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Sprints Restantes Projetadas</div>
+                <div class="value {% if projection.delay_sprints <= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ projection.projected_remaining_sprints | round(2) }} sprint(s)
+                </div>
+                <div class="small text-muted">
+                    Planejado restante: {{ projection.planned_remaining_sprints }} sprint(s)
                 </div>
             </div>
         </div>

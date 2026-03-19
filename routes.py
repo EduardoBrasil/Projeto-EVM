@@ -96,16 +96,32 @@ def build_sprint_record(
     planned_value=None,
 ):
     """Monta um registro de sprint com métricas EVM consistentes."""
-    metrics = EVMCalculator.calculate_sprint_metrics(
-        planned_points=planned_points,
-        earned_points=earned_points,
-        actual_cost=actual_cost,
-        value_per_point=value_per_point,
-    )
     if planned_value is not None:
-        metrics['PV'] = planned_value
-        metrics['SV'] = metrics['EV'] - planned_value
-        metrics['SPI'] = metrics['EV'] / planned_value if planned_value > 0 else 0
+        completion_ratio = (earned_points / planned_points) if planned_points > 0 else 0
+        ev = planned_value * completion_ratio
+        pv = planned_value
+        cv = ev - actual_cost
+        sv = ev - pv
+        cpi = ev / actual_cost if actual_cost > 0 else 0
+        spi = ev / pv if pv > 0 else 0
+        status = EVMCalculator.get_status(cpi, spi)
+        metrics = {
+            'PV': pv,
+            'EV': ev,
+            'AC': actual_cost,
+            'CV': cv,
+            'SV': sv,
+            'CPI': cpi,
+            'SPI': spi,
+            'status': status,
+        }
+    else:
+        metrics = EVMCalculator.calculate_sprint_metrics(
+            planned_points=planned_points,
+            earned_points=earned_points,
+            actual_cost=actual_cost,
+            value_per_point=value_per_point,
+        )
 
     completion_percentage = (
         (cumulative_done_points / total_release_points) * 100 if total_release_points > 0 else 0
@@ -160,6 +176,46 @@ def recalculate_history(history, value_per_point, total_release_points):
         )
 
     return recalculated_history
+
+
+def calculate_release_projection(history, bac, total_sprints):
+    """Calcula projeção de custo e prazo até o fim da release."""
+    if not history:
+        return {
+            'cpi': 0,
+            'spi': 0,
+            'eac': bac,
+            'cost_variance_at_completion': 0,
+            'projected_total_sprints': total_sprints,
+            'delay_sprints': 0,
+            'projected_remaining_sprints': total_sprints,
+        }
+
+    cumulative_ac = sum(record.get('AC', 0) for record in history)
+    cumulative_ev = sum(record.get('EV', 0) for record in history)
+    cumulative_pv = sum(record.get('PV', 0) for record in history)
+
+    cpi = (cumulative_ev / cumulative_ac) if cumulative_ac > 0 else 0
+    spi = (cumulative_ev / cumulative_pv) if cumulative_pv > 0 else 0
+
+    eac = (bac / cpi) if cpi > 0 else 0
+    projected_total_sprints = (total_sprints / spi) if spi > 0 else 0
+    delay_sprints = projected_total_sprints - total_sprints if projected_total_sprints > 0 else 0
+    remaining_sprints = max(total_sprints - len(history), 0)
+    projected_remaining_sprints = (
+        max(projected_total_sprints - len(history), 0) if projected_total_sprints > 0 else 0
+    )
+
+    return {
+        'cpi': round(cpi, 2),
+        'spi': round(spi, 2),
+        'eac': round(eac, 2),
+        'cost_variance_at_completion': round(eac - bac, 2),
+        'projected_total_sprints': round(projected_total_sprints, 2),
+        'delay_sprints': round(delay_sprints, 2),
+        'planned_remaining_sprints': remaining_sprints,
+        'projected_remaining_sprints': round(projected_remaining_sprints, 2),
+    }
 
 
 @routes_bp.route('/', methods=['GET'])
@@ -343,9 +399,10 @@ def plan():
     releases = list(enumerate(session.get('releases', []), 1))  # (número, dicionário)
     total_points = sum(r[1]['points'] for r in releases) if releases else 0
     total_sprints = sum(r[1]['sprints'] for r in releases) if releases else 0
-    
-    value_per_point = squad_cost / total_points if total_points > 0 else 0
-    bac = squad_cost
+
+    sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
+    bac = sprint_cost * total_sprints
+    value_per_point = bac / total_points if total_points > 0 else 0
 
     history = recalculate_history(session.get('history', []), value_per_point, total_points)
     session['history'] = history
@@ -363,11 +420,13 @@ def plan():
         'status': '-',
         'completion_percentage': 0,
     }
+    projection = calculate_release_projection(history, bac, total_sprints)
 
     return render_template(
         'plan.html',
         current_squad=current_squad,
         squad_cost=squad_cost,
+        sprint_cost=sprint_cost,
         value_per_point=value_per_point,
         bac=bac,
         releases=releases,
@@ -376,6 +435,7 @@ def plan():
         current_sprint=current_sprint,
         history=history,
         last_metrics=last_metrics,
+        projection=projection,
     )
 
 
@@ -469,7 +529,10 @@ def add_sprint():
 
     squad_cost = session.get('squad_cost', 0)
     total_release_points = sum(r['points'] for r in releases)
-    value_per_point = squad_cost / total_release_points if total_release_points > 0 else 0
+    total_release_sprints = sum(r['sprints'] for r in releases)
+    sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
+    bac = sprint_cost * total_release_sprints
+    value_per_point = bac / total_release_points if total_release_points > 0 else 0
 
     # Obter dados do formulário
     try:
