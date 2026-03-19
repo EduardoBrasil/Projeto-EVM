@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from models import Squad, EVMCalculator, SquadLoader
 import io
 import base64
+import copy
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -82,6 +83,59 @@ def parse_brazilian_float(value):
             return 0.0
     
     return 0.0
+
+
+def get_squad_workspaces():
+    """Retorna o dicionário de planejamentos por squad."""
+    return session.setdefault('squad_workspaces', {})
+
+
+def get_current_squad_name():
+    """Retorna o nome da squad atualmente selecionada."""
+    return session.get('current_squad_name')
+
+
+def ensure_current_squad_workspace():
+    """Garante que a squad atual tenha um workspace próprio na sessão."""
+    squad_name = get_current_squad_name()
+    if not squad_name:
+        return None
+
+    squads_data = session.get('squads_data', {})
+    squad_info = squads_data.get(squad_name, {})
+    base_members = copy.deepcopy(squad_info.get('members', []))
+    base_total_cost = squad_info.get('total_cost', 0)
+
+    workspaces = get_squad_workspaces()
+    if squad_name not in workspaces:
+        workspaces[squad_name] = {
+            'members': [],
+            'releases': [],
+            'history': [],
+            'squad_members_from_file': base_members,
+            'squad_total_cost': base_total_cost,
+        }
+        session['squad_workspaces'] = workspaces
+        session.modified = True
+
+    workspace = workspaces[squad_name]
+    workspace.setdefault('members', [])
+    workspace.setdefault('releases', [])
+    workspace.setdefault('history', [])
+    workspace.setdefault('squad_members_from_file', copy.deepcopy(base_members))
+    workspace.setdefault('squad_total_cost', base_total_cost)
+    return workspace
+
+
+def save_current_squad_workspace(workspace):
+    """Persiste o workspace da squad atual na sessão."""
+    squad_name = get_current_squad_name()
+    if not squad_name:
+        return
+    workspaces = get_squad_workspaces()
+    workspaces[squad_name] = workspace
+    session['squad_workspaces'] = workspaces
+    session.modified = True
 
 
 def build_sprint_record(
@@ -255,6 +309,8 @@ def upload_file():
                 squads_data = SquadLoader.load_file(filepath)
                 session['squads_data'] = squads_data
                 session['squads_list'] = list(squads_data.keys())
+                session.pop('squad_workspaces', None)
+                session.pop('current_squad_name', None)
                 session.modified = True
                 
                 flash(f'Arquivo carregado com sucesso! {len(squads_data)} squads encontradas.', 'success')
@@ -290,12 +346,9 @@ def select_squad():
             return redirect(request.url)
 
         # Carregar dados da squad para setup
-        squad_info = squads_data[selected_squad]
         session['current_squad_name'] = selected_squad
-        session['squad_members_from_file'] = squad_info['members']
-        session['squad_total_cost'] = squad_info['total_cost']
-        session['members'] = []  # Limpar membros manuais
         session.modified = True
+        ensure_current_squad_workspace()
 
         return redirect(url_for('routes.setup'))
 
@@ -309,12 +362,13 @@ def setup():
     - GET: Exibe o formulário com os membros carregados e adicionados
     - POST: Adiciona um novo membro manualmente
     """
-    if 'members' not in session:
-        session['members'] = []
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
 
     current_squad = session.get('current_squad_name', 'Squad desconhecida')
-    members_from_file = session.get('squad_members_from_file', [])
-    total_file_cost = session.get('squad_total_cost', 0)
+    members_from_file = workspace.get('squad_members_from_file', [])
+    total_file_cost = workspace.get('squad_total_cost', 0)
 
     if request.method == 'POST':
         role = request.form.get('role', '').strip()
@@ -328,7 +382,7 @@ def setup():
             hourly = 0
 
         if role and function and salary >= 0 and hourly >= 0:
-            members = session.get('members', [])
+            members = workspace.get('members', [])
             members.append({
                 'role': role,
                 'function': function,
@@ -336,19 +390,18 @@ def setup():
                 'hourly': hourly,
                 'source': 'manual',
             })
-            session['members'] = members
-            session.modified = True
+            workspace['members'] = members
+            save_current_squad_workspace(workspace)
 
-    members = session.get('members', [])
+    members = workspace.get('members', [])
     
     # Calcular custo de membros adicionados manualmente
     manual_cost = sum(m['salary'] + 160 * m['hourly'] for m in members)
     
     # Custo total = arquivo + manual
     squad_cost = total_file_cost + manual_cost
-    
-    session['squad_cost'] = squad_cost
-    session.modified = True
+    workspace['squad_cost'] = squad_cost
+    save_current_squad_workspace(workspace)
 
     return render_template(
         'setup.html',
@@ -369,34 +422,36 @@ def plan():
     - POST: Gerencia releases
     """
     # Verificar se squad foi configurada
-    if 'squad_cost' not in session or session.get('squad_cost', 0) <= 0:
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+
+    if workspace.get('squad_cost', 0) <= 0:
         return redirect(url_for('routes.setup'))
 
     # Inicializar releases se não existir
-    if 'releases' not in session:
-        session['releases'] = []
+    if 'releases' not in workspace:
+        workspace['releases'] = []
 
     # Normalizar releases (converter antigas para novo formato)
-    releases_raw = normalize_releases(session.get('releases', []))
-    session['releases'] = releases_raw
-    session.modified = True
+    releases_raw = normalize_releases(workspace.get('releases', []))
+    workspace['releases'] = releases_raw
 
     # Inicializar histórico
-    if 'history' not in session:
-        session['history'] = []
+    if 'history' not in workspace:
+        workspace['history'] = []
 
     # Processar criação de releases
     if request.method == 'POST' and 'create_releases' in request.form:
         num_releases = int(request.form.get('num_releases', 1))
         # Criar releases com pontos padrão de 50 pontos e 5 sprints cada
-        session['releases'] = [
+        workspace['releases'] = [
             {'points': 50, 'sprints': 5} for _ in range(num_releases)
         ]
-        session.modified = True
 
-    squad_cost = session.get('squad_cost', 0)
+    squad_cost = workspace.get('squad_cost', 0)
     current_squad = session.get('current_squad_name', 'Squad')
-    releases = list(enumerate(session.get('releases', []), 1))  # (número, dicionário)
+    releases = list(enumerate(workspace.get('releases', []), 1))  # (número, dicionário)
     total_points = sum(r[1]['points'] for r in releases) if releases else 0
     total_sprints = sum(r[1]['sprints'] for r in releases) if releases else 0
 
@@ -404,9 +459,9 @@ def plan():
     bac = sprint_cost * total_sprints
     value_per_point = bac / total_points if total_points > 0 else 0
 
-    history = recalculate_history(session.get('history', []), value_per_point, total_points)
-    session['history'] = history
-    session.modified = True
+    history = recalculate_history(workspace.get('history', []), value_per_point, total_points)
+    workspace['history'] = history
+    save_current_squad_workspace(workspace)
     current_sprint = len(history) + 1
     last_metrics = history[-1] if history else {
         'PV': 0,
@@ -442,14 +497,17 @@ def plan():
 @routes_bp.route('/update_release_points', methods=['POST'])
 def update_release_points():
     """Atualiza os pontos de uma release."""
-    releases = normalize_releases(session.get('releases', []))
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+    releases = normalize_releases(workspace.get('releases', []))
     release_index = int(request.form.get('release_index', 0))
     new_points = float(request.form.get('release_points', 50))
     
     if 0 <= release_index < len(releases):
         releases[release_index]['points'] = new_points
-        session['releases'] = releases
-        session.modified = True
+        workspace['releases'] = releases
+        save_current_squad_workspace(workspace)
         flash(f"Release {release_index + 1} atualizada para {new_points} pontos.", 'success')
     else:
         flash('Índice de release inválido.', 'error')
@@ -460,14 +518,17 @@ def update_release_points():
 @routes_bp.route('/update_release_sprints', methods=['POST'])
 def update_release_sprints():
     """Atualiza o número de sprints de uma release."""
-    releases = normalize_releases(session.get('releases', []))
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+    releases = normalize_releases(workspace.get('releases', []))
     release_index = int(request.form.get('release_index', 0))
     new_sprints = int(request.form.get('release_sprints', 5))
     
     if 0 <= release_index < len(releases):
         releases[release_index]['sprints'] = new_sprints
-        session['releases'] = releases
-        session.modified = True
+        workspace['releases'] = releases
+        save_current_squad_workspace(workspace)
         flash(f"Release {release_index + 1} atualizada para {new_sprints} sprints.", 'success')
     else:
         flash('Índice de release inválido.', 'error')
@@ -478,7 +539,10 @@ def update_release_sprints():
 @routes_bp.route('/add_release', methods=['POST'])
 def add_release():
     """Adiciona uma nova release."""
-    releases = normalize_releases(session.get('releases', []))
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+    releases = normalize_releases(workspace.get('releases', []))
     new_release_points = float(request.form.get('new_release_points', 50))
     new_release_sprints = int(request.form.get('new_release_sprints', 5))
     
@@ -486,8 +550,8 @@ def add_release():
         'points': new_release_points,
         'sprints': new_release_sprints
     })
-    session['releases'] = releases
-    session.modified = True
+    workspace['releases'] = releases
+    save_current_squad_workspace(workspace)
     flash(f"Nova release adicionada com {new_release_points} pontos e {new_release_sprints} sprints.", 'success')
     
     return redirect(url_for('routes.plan'))
@@ -496,13 +560,16 @@ def add_release():
 @routes_bp.route('/delete_release', methods=['POST'])
 def delete_release():
     """Remove uma release."""
-    releases = normalize_releases(session.get('releases', []))
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+    releases = normalize_releases(workspace.get('releases', []))
     release_index = int(request.form.get('release_index', 0))
     
     if 0 <= release_index < len(releases):
         removed = releases.pop(release_index)
-        session['releases'] = releases
-        session.modified = True
+        workspace['releases'] = releases
+        save_current_squad_workspace(workspace)
         flash(f"Release removida ({removed['points']} pontos, {removed['sprints']} sprints).", 'success')
     else:
         flash('Índice de release inválido.', 'error')
@@ -517,17 +584,21 @@ def add_sprint():
     Calcula todas as métricas de EVM baseado nos valores inseridos.
     """
     # Verificar se squad foi configurada
-    if 'squad_cost' not in session or session.get('squad_cost', 0) <= 0:
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+
+    if workspace.get('squad_cost', 0) <= 0:
         return redirect(url_for('routes.setup'))
 
-    releases = normalize_releases(session.get('releases', []))
+    releases = normalize_releases(workspace.get('releases', []))
     
     # Se não houver releases definidas, redirecionar para criar
     if not releases:
         flash('Por favor, configure as releases primeiro.', 'warning')
         return redirect(url_for('routes.plan'))
 
-    squad_cost = session.get('squad_cost', 0)
+    squad_cost = workspace.get('squad_cost', 0)
     total_release_points = sum(r['points'] for r in releases)
     total_release_sprints = sum(r['sprints'] for r in releases)
     sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
@@ -546,7 +617,7 @@ def add_sprint():
         return redirect(url_for('routes.plan'))
 
     # Adicionar ao histórico usando as fórmulas padrão do projeto
-    history = recalculate_history(session.get('history', []), value_per_point, total_release_points)
+    history = recalculate_history(workspace.get('history', []), value_per_point, total_release_points)
     sprint_number = len(history) + 1
     total_done_points = sum(h.get('done_points', 0) for h in history) + sprint_done_points
 
@@ -563,8 +634,8 @@ def add_sprint():
     )
 
     history.append(record)
-    session['history'] = history
-    session.modified = True
+    workspace['history'] = history
+    save_current_squad_workspace(workspace)
     
     flash(f'Sprint {sprint_number} registrada com sucesso!', 'success')
 
@@ -600,7 +671,8 @@ def _build_empty_chart_response(message='Sem dados para exibir'):
 @routes_bp.route('/generate_cumulative_chart')
 def generate_cumulative_chart():
     """Gera um gráfico cumulativo com PV, EV e AC de todas as sprints."""
-    history = session.get('history', [])
+    workspace = ensure_current_squad_workspace()
+    history = workspace.get('history', []) if workspace else []
     
     if not history:
         return _build_empty_chart_response()
@@ -642,7 +714,8 @@ def generate_cumulative_chart():
 @routes_bp.route('/generate_cpi_chart')
 def generate_cpi_chart():
     """Gera um gráfico exclusivo do CPI."""
-    history = session.get('history', [])
+    workspace = ensure_current_squad_workspace()
+    history = workspace.get('history', []) if workspace else []
 
     if not history:
         return _build_empty_chart_response()
@@ -664,7 +737,8 @@ def generate_cpi_chart():
 @routes_bp.route('/generate_spi_chart')
 def generate_spi_chart():
     """Gera um gráfico exclusivo do SPI."""
-    history = session.get('history', [])
+    workspace = ensure_current_squad_workspace()
+    history = workspace.get('history', []) if workspace else []
 
     if not history:
         return _build_empty_chart_response()
@@ -688,12 +762,15 @@ def remove_member(member_index):
     """
     Remove um membro adicionado manualmente da squad.
     """
-    members = session.get('members', [])
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+    members = workspace.get('members', [])
     
     if 0 <= member_index < len(members):
         removed = members.pop(member_index)
-        session['members'] = members
-        session.modified = True
+        workspace['members'] = members
+        save_current_squad_workspace(workspace)
         flash(f"Membro '{removed['role']}' removido com sucesso.", 'success')
     else:
         flash('Índice de membro inválido.', 'error')
@@ -706,14 +783,17 @@ def remove_file_member(member_index):
     """
     Remove um membro carregado da planilha da squad.
     """
-    file_members = session.get('squad_members_from_file', [])
+    workspace = ensure_current_squad_workspace()
+    if workspace is None:
+        return redirect(url_for('routes.select_squad'))
+    file_members = workspace.get('squad_members_from_file', [])
     
     if 0 <= member_index < len(file_members):
         removed = file_members.pop(member_index)
-        session['squad_members_from_file'] = file_members
+        workspace['squad_members_from_file'] = file_members
         # Recalcular o custo total da planilha
-        session['squad_total_cost'] = sum(member['total_grupo'] for member in file_members)
-        session.modified = True
+        workspace['squad_total_cost'] = sum(member['total_grupo'] for member in file_members)
+        save_current_squad_workspace(workspace)
         flash(f"Membro '{removed['cargo']}' removido com sucesso.", 'success')
     else:
         flash('Índice de membro inválido.', 'error')
