@@ -124,7 +124,7 @@
         <div class="alert alert-info mb-3">
             <strong>Sprint Vigente:</strong> {{ current_sprint }} de {{ total_sprints }}
         </div>
-        <p class="text-muted mb-3">Total de pontos definidos: <strong>{{ total_points }}</strong></p>
+        <p class="text-muted mb-3">Total de pontos da release (incluindo pontos adicionados): <strong>{{ total_points }}</strong></p>
         <form id="sprint-form" method="POST" action="{{ url_for('routes.add_sprint') }}" class="row g-3 align-items-end">
             <div class="col-md-2">
                 <label class="form-label">Pontos Planejados</label>
@@ -229,6 +229,9 @@
                         0%
                     {% endif %}
                 </div>
+                <div class="small text-muted">
+                    Escopo atual da release: {{ total_points }} pontos
+                </div>
             </div>
         </div>
 
@@ -268,6 +271,9 @@
                 <div class="label">Variação Projetada de Custo</div>
                 <div class="value {% if projection.cost_variance_at_completion <= 0 %}text-success{% else %}text-danger{% endif %}">
                     {{ projection.cost_variance_at_completion | currency }}
+                </div>
+                <div class="small text-muted">
+                    Escopo atual considerado: {{ total_points }} pontos
                 </div>
             </div>
             <div class="metric-card">

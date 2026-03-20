@@ -148,6 +148,13 @@ def get_or_create_workspace_for_squad(squad_name):
     return workspace
 
 
+def calculate_total_release_points(releases, history=None):
+    """Calcula o total de pontos da release incluindo escopo adicionado em sprint."""
+    base_points = sum(r.get('points', 0) for r in releases)
+    added_points = sum(float(record.get('added_points', 0) or 0) for record in (history or []))
+    return base_points + added_points
+
+
 def calculate_workspace_summary(squad_name, workspace, squad_info):
     """Monta um resumo executivo da squad para o dashboard."""
     base_total_cost = squad_info.get('total_cost', 0)
@@ -156,14 +163,14 @@ def calculate_workspace_summary(squad_name, workspace, squad_info):
     manual_cost = sum(m.get('salary', 0) + 160 * m.get('hourly', 0) for m in members)
     squad_cost = workspace.get('squad_cost', base_total_cost + manual_cost)
     releases = normalize_releases(workspace.get('releases', []))
-    total_points = sum(r.get('points', 0) for r in releases)
     total_sprints = sum(r.get('sprints', 0) for r in releases)
     sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
     bac = sprint_cost * total_sprints
+    total_points = calculate_total_release_points(releases, workspace.get('history', []))
     value_per_point = bac / total_points if total_points > 0 else 0
     history = recalculate_history(workspace.get('history', []), value_per_point, total_points)
     last_metrics = history[-1] if history else None
-    projection = calculate_release_projection(history, bac, total_sprints)
+    projection = calculate_release_projection(history, bac, total_sprints, total_points, sprint_cost)
 
     return {
         'name': squad_name,
@@ -187,10 +194,10 @@ def get_workspace_planning_context(workspace):
     """Calcula contexto consolidado do planejamento da squad."""
     releases = normalize_releases(workspace.get('releases', []))
     squad_cost = workspace.get('squad_cost', 0)
-    total_points = sum(r.get('points', 0) for r in releases)
     total_sprints = sum(r.get('sprints', 0) for r in releases)
     sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
     bac = sprint_cost * total_sprints
+    total_points = calculate_total_release_points(releases, workspace.get('history', []))
     value_per_point = bac / total_points if total_points > 0 else 0
     history = recalculate_history(workspace.get('history', []), value_per_point, total_points)
     return {
@@ -269,6 +276,9 @@ def recalculate_history(history, value_per_point, total_release_points):
     """Recalcula o histórico salvo na sessão usando as fórmulas corretas."""
     recalculated_history = []
     cumulative_done_points = 0.0
+    cumulative_added_points = 0.0
+    total_added_points = sum(float(record.get('added_points', 0) or 0) for record in history)
+    base_total_release_points = max(total_release_points - total_added_points, 0)
 
     for index, record in enumerate(history, start=1):
         planned_points = float(record.get('plan_points', 0) or 0)
@@ -282,6 +292,8 @@ def recalculate_history(history, value_per_point, total_release_points):
         )
 
         cumulative_done_points += done_points
+        cumulative_added_points += added_points
+        current_total_release_points = base_total_release_points + cumulative_added_points
         recalculated_history.append(
             build_sprint_record(
                 sprint_number=index,
@@ -291,7 +303,7 @@ def recalculate_history(history, value_per_point, total_release_points):
                 actual_cost=actual_cost,
                 value_per_point=value_per_point,
                 cumulative_done_points=cumulative_done_points,
-                total_release_points=total_release_points,
+                total_release_points=current_total_release_points,
                 planned_value=planned_value,
             )
         )
@@ -299,7 +311,7 @@ def recalculate_history(history, value_per_point, total_release_points):
     return recalculated_history
 
 
-def calculate_release_projection(history, bac, total_sprints):
+def calculate_release_projection(history, bac, total_sprints, total_release_points=0, sprint_cost=0):
     """Calcula projeção de custo e prazo até o fim da release."""
     if not history:
         return {
@@ -315,16 +327,27 @@ def calculate_release_projection(history, bac, total_sprints):
     cumulative_ac = sum(record.get('AC', 0) for record in history)
     cumulative_ev = sum(record.get('EV', 0) for record in history)
     cumulative_pv = sum(record.get('PV', 0) for record in history)
+    total_done_points = sum(record.get('done_points', 0) for record in history)
+    executed_sprints = len(history)
 
     cpi = (cumulative_ev / cumulative_ac) if cumulative_ac > 0 else 0
     spi = (cumulative_ev / cumulative_pv) if cumulative_pv > 0 else 0
 
-    eac = (bac / cpi) if cpi > 0 else 0
-    projected_total_sprints = (total_sprints / spi) if spi > 0 else 0
+    eac_cpi = (bac / cpi) if cpi > 0 else bac
+    projected_total_sprints_spi = (total_sprints / spi) if spi > 0 else total_sprints
+    average_velocity = (total_done_points / executed_sprints) if executed_sprints > 0 else 0
+    remaining_points = max(total_release_points - total_done_points, 0)
+    projected_remaining_sprints_velocity = (
+        remaining_points / average_velocity if average_velocity > 0 else max(total_sprints - executed_sprints, 0)
+    )
+    projected_total_sprints_velocity = executed_sprints + projected_remaining_sprints_velocity
+    projected_total_sprints = max(projected_total_sprints_spi, projected_total_sprints_velocity)
+    eac_schedule = projected_total_sprints * sprint_cost if sprint_cost > 0 else bac
+    eac = max(eac_cpi, eac_schedule)
     delay_sprints = projected_total_sprints - total_sprints if projected_total_sprints > 0 else 0
-    remaining_sprints = max(total_sprints - len(history), 0)
+    remaining_sprints = max(total_sprints - executed_sprints, 0)
     projected_remaining_sprints = (
-        max(projected_total_sprints - len(history), 0) if projected_total_sprints > 0 else 0
+        max(projected_total_sprints - executed_sprints, 0) if projected_total_sprints > 0 else 0
     )
 
     return {
@@ -343,15 +366,16 @@ def _get_planning_totals(workspace):
     """Retorna totais consolidados do planejamento atual."""
     releases = normalize_releases(workspace.get('releases', []))
     squad_cost = workspace.get('squad_cost', 0)
-    total_release_points = sum(r.get('points', 0) for r in releases)
     total_release_sprints = sum(r.get('sprints', 0) for r in releases)
     sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
     bac = sprint_cost * total_release_sprints
+    total_release_points = calculate_total_release_points(releases, workspace.get('history', []))
     value_per_point = bac / total_release_points if total_release_points > 0 else 0
     return {
         'releases': releases,
         'total_release_points': total_release_points,
         'total_release_sprints': total_release_sprints,
+        'bac': bac,
         'value_per_point': value_per_point,
     }
 
@@ -487,6 +511,30 @@ def select_squad():
     squads_data = session.get('squads_data', {})
     squads_list = list(squads_data.keys())
 
+    if request.method == 'POST' and 'create_squad' in request.form:
+        new_squad_name = request.form.get('new_squad_name', '').strip()
+
+        if not new_squad_name:
+            flash('Informe um nome para a nova squad.', 'error')
+            return redirect(request.url)
+
+        if new_squad_name in squads_data:
+            flash('Já existe uma squad com esse nome.', 'error')
+            return redirect(request.url)
+
+        squads_data[new_squad_name] = {
+            'members': [],
+            'total_cost': 0,
+        }
+        session['squads_data'] = squads_data
+        session['squads_list'] = list(squads_data.keys())
+        session['current_squad_name'] = new_squad_name
+        session.modified = True
+        ensure_current_squad_workspace()
+
+        flash(f"Squad '{new_squad_name}' criada com sucesso.", 'success')
+        return redirect(url_for('routes.setup'))
+
     if not squads_list:
         flash('Nenhuma squad carregada. Faça upload de arquivo.', 'warning')
         return redirect(url_for('routes.upload_file'))
@@ -605,7 +653,7 @@ def plan():
     squad_cost = workspace.get('squad_cost', 0)
     current_squad = session.get('current_squad_name', 'Squad')
     releases = list(enumerate(workspace.get('releases', []), 1))  # (número, dicionário)
-    total_points = sum(r[1]['points'] for r in releases) if releases else 0
+    total_points = calculate_total_release_points(workspace.get('releases', []), workspace.get('history', [])) if releases else 0
     total_sprints = sum(r[1]['sprints'] for r in releases) if releases else 0
 
     sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
@@ -628,7 +676,7 @@ def plan():
         'status': '-',
         'completion_percentage': 0,
     }
-    projection = calculate_release_projection(history, bac, total_sprints)
+    projection = calculate_release_projection(history, bac, total_sprints, total_points, sprint_cost)
 
     return render_template(
         'plan.html',
@@ -770,6 +818,10 @@ def add_sprint():
     history = recalculate_history(workspace.get('history', []), value_per_point, total_release_points)
     sprint_number = len(history) + 1
     total_done_points = sum(h.get('done_points', 0) for h in history) + sprint_done_points
+    updated_total_release_points = total_release_points + sprint_added_points
+    updated_value_per_point = (
+        planning_totals['bac'] / updated_total_release_points if updated_total_release_points > 0 else 0
+    )
 
     record = build_sprint_record(
         sprint_number=sprint_number,
@@ -777,14 +829,22 @@ def add_sprint():
         earned_points=sprint_done_points,
         added_points=sprint_added_points,
         actual_cost=sprint_actual_cost,
-        value_per_point=value_per_point,
+        value_per_point=updated_value_per_point,
         cumulative_done_points=total_done_points,
-        total_release_points=total_release_points,
+        total_release_points=updated_total_release_points,
         planned_value=sprint_planned_value,
     )
 
     history.append(record)
-    workspace['history'] = history
+    final_total_release_points = calculate_total_release_points(releases, history)
+    final_value_per_point = (
+        planning_totals['bac'] / final_total_release_points if final_total_release_points > 0 else 0
+    )
+    workspace['history'] = recalculate_history(
+        history,
+        final_value_per_point,
+        final_total_release_points,
+    )
     save_current_squad_workspace(workspace)
     
     flash(f'Sprint {sprint_number} registrada com sucesso!', 'success')
@@ -799,8 +859,8 @@ def update_sprint(sprint_no):
     if workspace is None:
         return redirect(url_for('routes.select_squad'))
 
-    planning_totals = _get_planning_totals(workspace)
-    if not planning_totals['releases']:
+    releases = normalize_releases(workspace.get('releases', []))
+    if not releases:
         flash('Por favor, configure as releases antes de editar a sprint.', 'warning')
         return redirect(url_for('routes.plan'))
 
@@ -820,11 +880,12 @@ def update_sprint(sprint_no):
         flash('Erro ao processar os dados da sprint.', 'error')
         return redirect(url_for('routes.plan'))
 
-    workspace['history'] = recalculate_history(
-        history,
-        planning_totals['value_per_point'],
-        planning_totals['total_release_points'],
-    )
+    total_release_sprints = sum(r.get('sprints', 0) for r in releases)
+    sprint_cost = workspace.get('squad_cost', 0) / 2 if workspace.get('squad_cost', 0) > 0 else 0
+    bac = sprint_cost * total_release_sprints
+    total_release_points = calculate_total_release_points(releases, history)
+    value_per_point = bac / total_release_points if total_release_points > 0 else 0
+    workspace['history'] = recalculate_history(history, value_per_point, total_release_points)
     save_current_squad_workspace(workspace)
     flash(f'Sprint {sprint_no} atualizada com sucesso!', 'success')
     return redirect(url_for('routes.plan'))
@@ -837,7 +898,6 @@ def delete_sprint(sprint_no):
     if workspace is None:
         return redirect(url_for('routes.select_squad'))
 
-    planning_totals = _get_planning_totals(workspace)
     history = list(workspace.get('history', []))
     sprint_index = sprint_no - 1
     if sprint_index < 0 or sprint_index >= len(history):
@@ -845,11 +905,13 @@ def delete_sprint(sprint_no):
         return redirect(url_for('routes.plan'))
 
     history.pop(sprint_index)
-    workspace['history'] = recalculate_history(
-        history,
-        planning_totals['value_per_point'],
-        planning_totals['total_release_points'],
-    )
+    releases = normalize_releases(workspace.get('releases', []))
+    total_release_sprints = sum(r.get('sprints', 0) for r in releases)
+    sprint_cost = workspace.get('squad_cost', 0) / 2 if workspace.get('squad_cost', 0) > 0 else 0
+    bac = sprint_cost * total_release_sprints
+    total_release_points = calculate_total_release_points(releases, history)
+    value_per_point = bac / total_release_points if total_release_points > 0 else 0
+    workspace['history'] = recalculate_history(history, value_per_point, total_release_points)
     save_current_squad_workspace(workspace)
     flash(f'Sprint {sprint_no} excluída com sucesso!', 'success')
     return redirect(url_for('routes.plan'))

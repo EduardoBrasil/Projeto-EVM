@@ -59,4 +59,25 @@
         </div>
     </div>
 </section>
+
+<section class="dashboard-grid mt-4">
+    <div class="card span-4">
+        <div class="card-header">Nova Squad</div>
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <input type="hidden" name="create_squad" value="1">
+                <div class="col-12">
+                    <label class="form-label">Nome da nova squad</label>
+                    <input type="text" class="form-control" name="new_squad_name" placeholder="Ex: Captura SDK" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success w-100">Criar squad</button>
+                </div>
+                <div class="col-12">
+                    <p class="text-muted small mb-0">A squad serÃ¡ criada vazia e aberta direto na configuraÃ§Ã£o.</p>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
 {% endblock %}
