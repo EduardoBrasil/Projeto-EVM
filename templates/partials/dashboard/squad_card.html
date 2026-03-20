@@ -1,0 +1,47 @@
+<div class="card span-4">
+    <div class="card-body dashboard-squad-card">
+        <div class="dashboard-squad-head">
+            <div>
+                <div class="dashboard-squad-name">{{ summary.name }}</div>
+                <div class="dashboard-squad-meta">
+                    {{ summary.releases_count }} release(s) · {{ summary.history_count }} sprint(s) registrada(s)
+                </div>
+            </div>
+            <span class="status-chip {% if 'OK' in summary.status %}status-positive{% elif 'Não iniciado' in summary.status %}status-warning{% else %}status-danger{% endif %}">
+                {{ summary.status }}
+            </span>
+        </div>
+
+        <div class="grid-2">
+            <div class="metric-card">
+                <div class="label">Custo mensal</div>
+                <div class="value">{{ summary.squad_cost | currency }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">BAC</div>
+                <div class="value">{{ summary.bac | currency }}</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="metric-card">
+                <div class="label">Conclusão</div>
+                <div class="value">{{ summary.completion_percentage }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Previsão de entrega</div>
+                <div class="value {% if summary.projection.delay_sprints > 0 %}text-danger{% else %}text-success{% endif %}">
+                    Sprint {{ summary.projection.projected_total_sprints | round(2) }}
+                </div>
+                <div class="small text-muted">
+                    Status do projeto: {{ summary.status }}
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <a class="btn btn-primary w-100" href="{{ url_for('routes.squad_dashboard', squad_name=summary.name) }}">Abrir dashboard da squad</a>
+            <a class="btn btn-outline-secondary w-100" href="{{ url_for('routes.switch_squad', squad_name=summary.name, next='routes.plan') }}">Abrir planejamento</a>
+        </div>
+    </div>
+</div>

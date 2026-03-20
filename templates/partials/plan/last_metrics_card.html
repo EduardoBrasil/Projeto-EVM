@@ -1,0 +1,75 @@
+{% if last_metrics %}
+<div class="card mb-4">
+    <div class="card-header">
+        Métricas da Última Sprint
+    </div>
+    <div class="card-body">
+        <div class="grid-3">
+            <div class="metric-card">
+                <div class="label">PV (Planned Value)</div>
+                <div class="value">{{ last_metrics.PV | currency }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">EV (Earned Value)</div>
+                <div class="value">{{ last_metrics.EV | currency }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">AC (Actual Cost)</div>
+                <div class="value">{{ last_metrics.AC | currency }}</div>
+            </div>
+        </div>
+
+        <div class="grid-3 mt-3">
+            <div class="metric-card">
+                <div class="label">CV (Cost Variance)</div>
+                <div class="value {% if last_metrics.CV >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ last_metrics.CV | currency }}
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="label">SV (Schedule Variance)</div>
+                <div class="value {% if last_metrics.SV >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ last_metrics.SV | currency }}
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Status</div>
+                <div class="value {% if 'OK' in last_metrics.status %}status-ok{% else %}status-warning{% endif %}">
+                    {{ last_metrics.status }}
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2 mt-3">
+            <div class="metric-card">
+                <div class="label">CPI (Cost Performance Index)</div>
+                <div class="value {% if last_metrics.CPI >= 1 %}text-success{% else %}text-danger{% endif %}">
+                    {{ last_metrics.CPI | round(2) }}
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="label">SPI (Schedule Performance Index)</div>
+                <div class="value {% if last_metrics.SPI >= 1 %}text-success{% else %}text-danger{% endif %}">
+                    {{ last_metrics.SPI | round(2) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2 mt-3">
+            <div class="metric-card">
+                <div class="label">% Concluída do Projeto</div>
+                <div class="value text-info">
+                    {% if last_metrics.completion_percentage is defined %}
+                        {{ last_metrics.completion_percentage }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+                <div class="small text-muted">
+                    Escopo atual da release: {{ total_points }} pontos
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

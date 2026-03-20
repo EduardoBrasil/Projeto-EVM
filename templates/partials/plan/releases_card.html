@@ -1,0 +1,71 @@
+<div class="card mb-4">
+    <div class="card-header">
+        Configurar Releases
+    </div>
+    <div class="card-body">
+        {% if not releases %}
+        <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Quantidade de Releases</label>
+                <input type="number" class="form-control" name="num_releases" placeholder="Ex: 3" min="1" step="1" required>
+            </div>
+            <div class="col-md-6">
+                <button type="submit" name="create_releases" class="btn btn-primary w-100">Criar Releases</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="table-responsive mb-3">
+            <table class="table table-border">
+                <thead>
+                    <tr>
+                        <th>Release</th>
+                        <th>Pontos</th>
+                        <th>Sprints</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, release in releases %}
+                    <tr>
+                        <td><strong>Release {{ i }}</strong></td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.update_release_points') }}" style="display: inline; display: flex; gap: 5px;">
+                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
+                                <input type="number" class="form-control form-control-sm" name="release_points" value="{{ release.points }}" min="1" step="1" style="max-width: 100px;" required>
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.update_release_sprints') }}" style="display: inline; display: flex; gap: 5px;">
+                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
+                                <input type="number" class="form-control form-control-sm" name="release_sprints" value="{{ release.sprints }}" min="1" step="1" style="max-width: 80px;" required>
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.delete_release') }}" style="display: inline;">
+                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remover esta release?');">Remover</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <form method="POST" action="{{ url_for('routes.add_release') }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Pontos da Nova Release</label>
+                <input type="number" class="form-control" name="new_release_points" placeholder="Ex: 50" min="1" step="1" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Sprints da Release</label>
+                <input type="number" class="form-control" name="new_release_sprints" placeholder="Ex: 5" min="1" step="1" required>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-success w-100">Adicionar Release</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>

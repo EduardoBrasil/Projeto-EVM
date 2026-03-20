@@ -28,109 +28,21 @@
     <div class="card span-8">
         <div class="card-header">Membros da Planilha</div>
         <div class="card-body">
-            {% if members_from_file %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Cargo</th>
-                            <th>Área</th>
-                            <th>Qtde</th>
-                            <th>Custo M H/H</th>
-                            <th>Preço M/HH</th>
-                            <th>Total</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for member in members_from_file %}
-                        <tr>
-                            <td><strong>{{ member.cargo }}</strong></td>
-                            <td>{{ member.area }}</td>
-                            <td>{{ member.qtde }}</td>
-                            <td>{{ member.custo_mhh | currency }}</td>
-                            <td>{{ member.preco_mhh | currency }}</td>
-                            <td>{{ member.total_grupo | currency }}</td>
-                            <td>
-                                <form method="POST" action="{{ url_for('routes.remove_file_member', member_index=loop.index0) }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Tem certeza que deseja remover este membro?')">Remover</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="empty-state">Nenhum membro carregado da planilha.</div>
-            {% endif %}
+            {% include "partials/setup/file_members_table.html" %}
         </div>
     </div>
 
     <div class="card span-4">
         <div class="card-header">Adicionar Membro Extra</div>
         <div class="card-body">
-            <form method="POST" class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">Cargo</label>
-                    <input type="text" class="form-control" name="role" placeholder="Ex: Scrum Master" required>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Função</label>
-                    <input type="text" class="form-control" name="function" placeholder="Ex: Gestão" required>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Salário base (R$)</label>
-                    <input type="number" class="form-control" name="salary" placeholder="0.00" step="0.01">
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Valor/hora (R$)</label>
-                    <input type="number" class="form-control" name="hourly" placeholder="0.00" step="0.01">
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary w-100">Adicionar membro</button>
-                </div>
-            </form>
+            {% include "partials/setup/manual_member_form.html" %}
         </div>
     </div>
 
     <div class="card span-12">
         <div class="card-header">Membros Adicionados Manualmente</div>
         <div class="card-body">
-            {% if members %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Cargo</th>
-                            <th>Função</th>
-                            <th>Salário Base</th>
-                            <th>Valor/Hora</th>
-                            <th>Custo Estimado</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for member in members %}
-                        <tr>
-                            <td><strong>{{ member.role }}</strong></td>
-                            <td>{{ member.function }}</td>
-                            <td>{{ member.salary | currency }}</td>
-                            <td>{{ member.hourly | currency }}</td>
-                            <td>{{ (member.salary + 160 * member.hourly) | currency }}</td>
-                            <td>
-                                <form method="POST" action="{{ url_for('routes.remove_member', member_index=loop.index0) }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remover este membro?');">Remover</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="empty-state">Nenhum membro adicional cadastrado para esta squad.</div>
-            {% endif %}
+            {% include "partials/setup/manual_members_table.html" %}
         </div>
     </div>
 </section>

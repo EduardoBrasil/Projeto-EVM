@@ -1,0 +1,47 @@
+<aside class="sidebar">
+    <div class="brand-block">
+        <div class="brand-mark">EVM</div>
+        <div>
+            <div class="brand-title">Project Pulse</div>
+            <div class="brand-subtitle">Planejamento e acompanhamento</div>
+        </div>
+    </div>
+
+    <nav class="nav-stack">
+        <a class="nav-link-custom {% if request.endpoint == 'routes.dashboard' %}active{% endif %}" href="{{ url_for('routes.dashboard') if nav_squads else url_for('routes.upload_file') }}">
+            Dashboard
+        </a>
+        <a class="nav-link-custom {% if request.endpoint == 'routes.upload_file' %}active{% endif %}" href="{{ url_for('routes.upload_file') }}">
+            Importar Planilha
+        </a>
+        {% if nav_squads %}
+        <a class="nav-link-custom {% if request.endpoint == 'routes.select_squad' %}active{% endif %}" href="{{ url_for('routes.select_squad') }}">
+            Selecionar Squad
+        </a>
+        {% endif %}
+        {% if nav_current_squad %}
+        <a class="nav-link-custom {% if request.endpoint == 'routes.setup' %}active{% endif %}" href="{{ url_for('routes.setup') }}">
+            Configuração da Squad
+        </a>
+        <a class="nav-link-custom {% if request.endpoint == 'routes.plan' %}active{% endif %}" href="{{ url_for('routes.plan') }}">
+            Planejamento da Squad
+        </a>
+        {% endif %}
+    </nav>
+
+    {% if nav_squads %}
+    <div class="sidebar-section">
+        <div class="sidebar-label">Squads</div>
+        <div class="squad-list">
+            {% for squad_name in nav_squads %}
+            <a class="squad-link {% if squad_name == nav_current_squad %}active{% endif %}" href="{{ url_for('routes.squad_dashboard', squad_name=squad_name) }}">
+                <span>{{ squad_name }}</span>
+                {% if squad_name == nav_current_squad %}
+                <span class="squad-badge">Ativa</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</aside>

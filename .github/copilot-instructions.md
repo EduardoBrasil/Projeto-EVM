@@ -1,4 +1,4 @@
 - [x] Verify that copilot-instructions.md file exists in .github.
-- [x] Scaffold Python EVM project with main.py and README.
+- [x] Scaffold Python EVM web project with Flask and README.
 - [x] Install required dependencies from requirements.txt.
 - [x] Provide execution instructions for user.
