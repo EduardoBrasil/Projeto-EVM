@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import io
 
-import pytest
-
 import routes
 from tests.conftest import seed_session
 
@@ -28,13 +26,21 @@ def planning_workspace():
     }
 
 
+def authenticate_session(client, username="tester", user_id=1):
+    with client.session_transaction() as session:
+        session["user_id"] = user_id
+        session["username"] = username
+
+
 def test_dashboard_redirects_without_data(client):
     response = client.get("/")
     assert response.status_code == 302
-    assert response.location.endswith("/upload")
+    assert response.location.endswith("/login")
 
 
 def test_upload_page_and_invalid_extension(client):
+    authenticate_session(client)
+
     response = client.get("/upload")
     assert response.status_code == 200
 
@@ -48,6 +54,7 @@ def test_upload_page_and_invalid_extension(client):
 
 
 def test_upload_valid_csv_populates_session(client):
+    authenticate_session(client)
     csv_bytes = (
         "SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO\n"
         "Alpha,Dev,Backend,1,10,20,0\n"
@@ -61,6 +68,26 @@ def test_upload_valid_csv_populates_session(client):
 
     assert response.status_code == 302
     assert response.location.endswith("/select_squad")
+
+
+def test_auth_register_login_and_logout(client):
+    register_response = client.post(
+        "/register",
+        data={"username": "alice", "password": "secret1", "confirm_password": "secret1"},
+    )
+    assert register_response.status_code == 302
+    assert register_response.location.endswith("/upload")
+
+    logout_response = client.post("/logout")
+    assert logout_response.status_code == 302
+    assert logout_response.location.endswith("/login")
+
+    login_response = client.post(
+        "/login",
+        data={"username": "alice", "password": "secret1"},
+    )
+    assert login_response.status_code == 302
+    assert login_response.location.endswith("/dashboard")
 
 
 def test_select_squad_create_and_switch(client, sample_squads_data):
@@ -80,12 +107,30 @@ def test_setup_adds_manual_member(client, sample_squads_data):
 
     response = client.post(
         "/setup",
-        data={"role": "QA", "function": "Quality", "salary": "1000", "hourly": "10"},
+        data={"role": "QA", "function": "Quality", "salary": "1000", "hourly": "10", "quantity": "2"},
         follow_redirects=True,
     )
 
     assert response.status_code == 200
     assert b"QA" in response.data
+
+
+def test_setup_updates_file_and_manual_members(client, sample_squads_data):
+    workspace = planning_workspace()
+    workspace["members"] = [{"role": "QA", "function": "Quality", "salary": 1000, "hourly": 10, "quantity": 1}]
+    seed_session(client, sample_squads_data, workspace=workspace)
+
+    assert client.post("/update_file_members", data={"file_member_quantity_0": "0.5"}).status_code == 302
+    assert client.post(
+        "/update_manual_members",
+        data={
+            "manual_role_0": "QA Lead",
+            "manual_function_0": "Quality",
+            "manual_salary_0": "1200",
+            "manual_hourly_0": "12",
+            "manual_quantity_0": "0.25",
+        },
+    ).status_code == 302
 
 
 def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
@@ -108,7 +153,7 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
         data={
             "sprint_plan_points": 10,
             "sprint_done_points": 8,
-            "sprint_added_points": 4,
+            "sprint_added_points": 0,
             "sprint_planned_value": "100,00",
             "sprint_actual_cost": "80,00",
         },
@@ -134,8 +179,14 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     response = client.post("/delete_sprint/1")
     assert response.status_code == 302
 
-    response = client.post("/delete_release", data={"release_index": 1})
-    assert response.status_code == 302
+
+def test_release_configuration_is_locked_after_initial_setup(client, sample_squads_data):
+    workspace = planning_workspace()
+    seed_session(client, sample_squads_data, workspace=workspace)
+
+    assert client.post("/add_release", data={"new_release_points": 20, "new_release_sprints": 2}).status_code == 302
+    assert client.post("/delete_release", data={"release_index": 0}).status_code == 302
+    assert client.post("/update_release_points", data={"release_index": 0, "release_points": 99}).status_code == 302
 
 
 def test_charts_and_navigation_routes(client, sample_squads_data):
@@ -153,7 +204,7 @@ def test_charts_and_navigation_routes(client, sample_squads_data):
             "SV": -20,
             "CPI": 0.89,
             "SPI": 0.8,
-            "status": "⚠️ Atenção: Acima do custo e atrasado",
+            "status": "Atencao: Acima do custo e atrasado",
             "completion_percentage": 20,
         }
     ]
@@ -175,6 +226,7 @@ def test_member_removal_and_reset(client, sample_squads_data):
 
     assert client.post("/remove_member/0").status_code == 302
     assert client.post("/remove_file_member/0").status_code == 302
+    assert client.post("/delete_squad/Alpha").status_code == 302
     assert client.get("/reset").status_code == 302
 
 
@@ -187,6 +239,8 @@ def test_route_helpers_cover_parsing_and_workspace_branches(app):
 
         from flask import session
 
+        session["user_id"] = 1
+        session["username"] = "tester"
         session["current_squad_name"] = "Alpha"
         session["squads_data"] = {"Alpha": {"members": [{"cargo": "Dev"}], "total_cost": 100}}
         workspace = routes.ensure_current_squad_workspace()
@@ -200,6 +254,7 @@ def test_invalid_navigation_branches(client, sample_squads_data):
 
     assert client.get("/switch_squad/Invalida").status_code == 302
     assert client.get("/dashboard/squad/Invalida").status_code == 302
+    assert client.post("/delete_squad/Invalida").status_code == 302
     assert client.post("/update_sprint/99").status_code == 302
     assert client.post("/delete_sprint/99").status_code == 302
     assert client.post("/remove_member/99").status_code == 302

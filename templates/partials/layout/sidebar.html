@@ -8,23 +8,30 @@
     </div>
 
     <nav class="nav-stack">
-        <a class="nav-link-custom {% if request.endpoint == 'routes.dashboard' %}active{% endif %}" href="{{ url_for('routes.dashboard') if nav_squads else url_for('routes.upload_file') }}">
+        {% if nav_is_authenticated %}
+        <a class="nav-link-custom {% if request.endpoint == 'routes.dashboard' %}active{% endif %}" href="{{ url_for('routes.dashboard') }}">
             Dashboard
         </a>
         <a class="nav-link-custom {% if request.endpoint == 'routes.upload_file' %}active{% endif %}" href="{{ url_for('routes.upload_file') }}">
             Importar Planilha
         </a>
-        {% if nav_squads %}
         <a class="nav-link-custom {% if request.endpoint == 'routes.select_squad' %}active{% endif %}" href="{{ url_for('routes.select_squad') }}">
             Selecionar Squad
         </a>
-        {% endif %}
         {% if nav_current_squad %}
         <a class="nav-link-custom {% if request.endpoint == 'routes.setup' %}active{% endif %}" href="{{ url_for('routes.setup') }}">
-            Configuração da Squad
+            Configuracao da Squad
         </a>
         <a class="nav-link-custom {% if request.endpoint == 'routes.plan' %}active{% endif %}" href="{{ url_for('routes.plan') }}">
             Planejamento da Squad
+        </a>
+        {% endif %}
+        {% else %}
+        <a class="nav-link-custom {% if request.endpoint == 'routes.login' %}active{% endif %}" href="{{ url_for('routes.login') }}">
+            Entrar
+        </a>
+        <a class="nav-link-custom {% if request.endpoint == 'routes.register' %}active{% endif %}" href="{{ url_for('routes.register') }}">
+            Criar Conta
         </a>
         {% endif %}
     </nav>
@@ -42,6 +49,16 @@
             </a>
             {% endfor %}
         </div>
+    </div>
+    {% endif %}
+
+    {% if nav_is_authenticated %}
+    <div class="sidebar-section">
+        <div class="sidebar-label">Sessao</div>
+        <div class="small text-white-50 mb-3">{{ nav_username }}</div>
+        <form method="POST" action="{{ url_for('routes.logout') }}">
+            <button type="submit" class="btn btn-outline-light w-100">Sair</button>
+        </form>
     </div>
     {% endif %}
 </aside>

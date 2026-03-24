@@ -1,79 +1,85 @@
 {% if history and history|length > 0 %}
 <div class="card mb-4">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center w-100">
-            <span>Gráfico Cumulativo - PV, EV e AC</span>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-cumulative" aria-expanded="false" aria-controls="collapse-cumulative">
-                Expandir / Recolher
-            </button>
-        </div>
+    <div class="card-header collapsible-card-header">
+        <span>Graficos do Projeto</span>
+        <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-charts-body" aria-expanded="false" aria-controls="plan-charts-body">
+            Expandir
+        </button>
     </div>
-    <div id="collapse-cumulative" class="collapse">
-        <div class="card-body text-center">
-            <img src="{{ url_for('routes.generate_cumulative_chart', v=history|length ~ '-' ~ last_metrics.sprint_no ~ '-' ~ last_metrics.PV) }}" alt="Gráfico Cumulativo de PV, EV e AC" style="max-width: 100%; height: auto;">
-            <div class="alert alert-light text-start mt-3 mb-0" role="alert">
-                <strong>Como interpretar:</strong>
-                <div class="small mt-2">
-                    Prazo: quando <strong>EV acumulado</strong> fica abaixo de <strong>PV acumulado</strong>, o projeto está atrasado.
+    <div id="plan-charts-body" class="collapse">
+        <div class="card-body">
+            <div class="card mb-4">
+                <div class="card-header collapsible-card-header">
+                    <span>Grafico Cumulativo - PV, EV e AC</span>
+                    <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-cumulative" aria-expanded="false" aria-controls="collapse-cumulative">
+                        Expandir
+                    </button>
                 </div>
-                <div class="small">
-                    Custo: quando <strong>EV acumulado</strong> fica abaixo de <strong>AC acumulado</strong>, o projeto está acima do custo.
+                <div id="collapse-cumulative" class="collapse">
+                    <div class="card-body text-center">
+                        <img src="{{ url_for('routes.generate_cumulative_chart', v=history|length ~ '-' ~ last_metrics.sprint_no ~ '-' ~ last_metrics.PV) }}" alt="Grafico Cumulativo de PV, EV e AC" style="max-width: 100%; height: auto;">
+                        <div class="alert alert-light text-start mt-3 mb-0" role="alert">
+                            <strong>Como interpretar:</strong>
+                            <div class="small mt-2">
+                                Prazo: quando <strong>EV acumulado</strong> fica abaixo de <strong>PV acumulado</strong>, o projeto esta atrasado.
+                            </div>
+                            <div class="small">
+                                Custo: quando <strong>EV acumulado</strong> fica abaixo de <strong>AC acumulado</strong>, o projeto esta acima do custo.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center w-100">
-            <span>Gráfico de CPI</span>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-cpi" aria-expanded="false" aria-controls="collapse-cpi">
-                Expandir / Recolher
-            </button>
-        </div>
-    </div>
-    <div id="collapse-cpi" class="collapse">
-        <div class="card-body text-center">
-            <img src="{{ url_for('routes.generate_cpi_chart', v=history|length ~ '-' ~ last_metrics.CPI) }}" alt="Gráfico de CPI" style="max-width: 100%; height: auto;">
-            <div class="alert alert-light text-start mt-3 mb-0" role="alert">
-                <strong>Legenda do CPI:</strong>
-                <div class="small mt-2">
-                    <strong>CPI &gt; 1</strong>: a squad está mais eficiente em custo do que o previsto.
+            <div class="card mb-4">
+                <div class="card-header collapsible-card-header">
+                    <span>Grafico de CPI</span>
+                    <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-cpi" aria-expanded="false" aria-controls="collapse-cpi">
+                        Expandir
+                    </button>
                 </div>
-                <div class="small">
-                    <strong>CPI = 1</strong>: o custo realizado está aderente ao planejado.
-                </div>
-                <div class="small">
-                    <strong>CPI &lt; 1</strong>: a sprint está acima do custo esperado.
+                <div id="collapse-cpi" class="collapse">
+                    <div class="card-body text-center">
+                        <img src="{{ url_for('routes.generate_cpi_chart', v=history|length ~ '-' ~ last_metrics.CPI) }}" alt="Grafico de CPI" style="max-width: 100%; height: auto;">
+                        <div class="alert alert-light text-start mt-3 mb-0" role="alert">
+                            <strong>Legenda do CPI:</strong>
+                            <div class="small mt-2">
+                                <strong>CPI &gt; 1</strong>: a squad esta mais eficiente em custo do que o previsto.
+                            </div>
+                            <div class="small">
+                                <strong>CPI = 1</strong>: o custo realizado esta aderente ao planejado.
+                            </div>
+                            <div class="small">
+                                <strong>CPI &lt; 1</strong>: a sprint esta acima do custo esperado.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center w-100">
-            <span>Gráfico de SPI</span>
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-spi" aria-expanded="false" aria-controls="collapse-spi">
-                Expandir / Recolher
-            </button>
-        </div>
-    </div>
-    <div id="collapse-spi" class="collapse">
-        <div class="card-body text-center">
-            <img src="{{ url_for('routes.generate_spi_chart', v=history|length ~ '-' ~ last_metrics.SPI) }}" alt="Gráfico de SPI" style="max-width: 100%; height: auto;">
-            <div class="alert alert-light text-start mt-3 mb-0" role="alert">
-                <strong>Legenda do SPI:</strong>
-                <div class="small mt-2">
-                    <strong>SPI &gt; 1</strong>: a squad está entregando acima do ritmo planejado.
+            <div class="card mb-0">
+                <div class="card-header collapsible-card-header">
+                    <span>Grafico de SPI</span>
+                    <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-spi" aria-expanded="false" aria-controls="collapse-spi">
+                        Expandir
+                    </button>
                 </div>
-                <div class="small">
-                    <strong>SPI = 1</strong>: a sprint está aderente ao cronograma.
-                </div>
-                <div class="small">
-                    <strong>SPI &lt; 1</strong>: a squad está atrasada em relação ao planejado.
+                <div id="collapse-spi" class="collapse">
+                    <div class="card-body text-center">
+                        <img src="{{ url_for('routes.generate_spi_chart', v=history|length ~ '-' ~ last_metrics.SPI) }}" alt="Grafico de SPI" style="max-width: 100%; height: auto;">
+                        <div class="alert alert-light text-start mt-3 mb-0" role="alert">
+                            <strong>Legenda do SPI:</strong>
+                            <div class="small mt-2">
+                                <strong>SPI &gt; 1</strong>: a squad esta entregando acima do ritmo planejado.
+                            </div>
+                            <div class="small">
+                                <strong>SPI = 1</strong>: a sprint esta aderente ao cronograma.
+                            </div>
+                            <div class="small">
+                                <strong>SPI &lt; 1</strong>: a squad esta atrasada em relacao ao planejado.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -81,6 +87,6 @@
 </div>
 {% else %}
 <div class="alert alert-info" role="alert">
-    <strong>Informação:</strong> Nenhuma sprint registrada ainda. Adicione a primeira sprint acima.
+    <strong>Informacao:</strong> Nenhuma sprint registrada ainda. Adicione a primeira sprint acima.
 </div>
 {% endif %}

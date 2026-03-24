@@ -20,6 +20,9 @@ from route_helpers import (
 
 
 def register_planning_routes(routes_bp):
+    def releases_are_locked(workspace):
+        return bool(normalize_releases(workspace.get("releases", [])))
+
     @routes_bp.route("/plan", methods=["GET", "POST"])
     def plan():
         workspace = ensure_current_squad_workspace()
@@ -32,26 +35,33 @@ def register_planning_routes(routes_bp):
         workspace.setdefault("releases", [])
         workspace["releases"] = normalize_releases(workspace.get("releases", []))
         workspace.setdefault("history", [])
+        workspace.setdefault("default_sprint_weeks", 2)
 
-        if request.method == "POST" and "create_releases" in request.form:
+        if request.method == "POST" and "create_releases" in request.form and not workspace["releases"]:
             num_releases = int(request.form.get("num_releases", 1))
             workspace["releases"] = [{"points": 50, "sprints": 5} for _ in range(num_releases)]
+        elif request.method == "POST" and "create_releases" in request.form:
+            flash("As releases ja foram configuradas e estao bloqueadas para edicao.", "warning")
 
+        planning_totals = get_planning_totals(workspace)
         squad_cost = workspace.get("squad_cost", 0)
         current_squad = session.get("current_squad_name", "Squad")
         releases = list(enumerate(workspace.get("releases", []), 1))
-        total_points = (
-            calculate_total_release_points(workspace.get("releases", []), workspace.get("history", []))
-            if releases
-            else 0
+        total_points = planning_totals["total_release_points"] if releases else 0
+        total_sprints = planning_totals["total_release_sprints"] if releases else 0
+        sprint_cost = planning_totals["sprint_cost"]
+        bac = planning_totals["bac"]
+        value_per_point = planning_totals["value_per_point"]
+        default_sprint_weeks = planning_totals["default_sprint_weeks"]
+        current_component_count = planning_totals["current_component_count"]
+
+        history = recalculate_history(
+            workspace.get("history", []),
+            value_per_point,
+            total_points,
+            squad_cost,
+            current_component_count,
         )
-        total_sprints = sum(release[1]["sprints"] for release in releases) if releases else 0
-
-        sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
-        bac = sprint_cost * total_sprints
-        value_per_point = bac / total_points if total_points > 0 else 0
-
-        history = recalculate_history(workspace.get("history", []), value_per_point, total_points)
         workspace["history"] = history
         save_current_squad_workspace(workspace)
         current_sprint = len(history) + 1
@@ -83,13 +93,35 @@ def register_planning_routes(routes_bp):
             history=history,
             last_metrics=last_metrics,
             projection=projection,
+            default_sprint_weeks=default_sprint_weeks,
+            current_component_count=current_component_count,
         )
+
+    @routes_bp.route("/update_sprint_settings", methods=["POST"])
+    def update_sprint_settings():
+        workspace = ensure_current_squad_workspace()
+        if workspace is None:
+            return redirect(url_for("routes.select_squad"))
+
+        try:
+            default_sprint_weeks = float(request.form.get("default_sprint_weeks", 2) or 2)
+        except (ValueError, TypeError):
+            flash("Informe uma duracao valida para a sprint.", "error")
+            return redirect(url_for("routes.plan"))
+
+        workspace["default_sprint_weeks"] = max(default_sprint_weeks, 0.5)
+        save_current_squad_workspace(workspace)
+        flash("Configuracao padrao da sprint atualizada com sucesso.", "success")
+        return redirect(url_for("routes.plan"))
 
     @routes_bp.route("/update_release_points", methods=["POST"])
     def update_release_points():
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
+        if releases_are_locked(workspace):
+            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
+            return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
         release_index = int(request.form.get("release_index", 0))
@@ -101,7 +133,7 @@ def register_planning_routes(routes_bp):
             save_current_squad_workspace(workspace)
             flash(f"Release {release_index + 1} atualizada para {new_points} pontos.", "success")
         else:
-            flash("Índice de release inválido.", "error")
+            flash("Indice de release invalido.", "error")
 
         return redirect(url_for("routes.plan"))
 
@@ -110,6 +142,9 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
+        if releases_are_locked(workspace):
+            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
+            return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
         release_index = int(request.form.get("release_index", 0))
@@ -121,7 +156,7 @@ def register_planning_routes(routes_bp):
             save_current_squad_workspace(workspace)
             flash(f"Release {release_index + 1} atualizada para {new_sprints} sprints.", "success")
         else:
-            flash("Índice de release inválido.", "error")
+            flash("Indice de release invalido.", "error")
 
         return redirect(url_for("routes.plan"))
 
@@ -130,6 +165,9 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
+        if releases_are_locked(workspace):
+            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
+            return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
         releases.append(
@@ -148,6 +186,9 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
+        if releases_are_locked(workspace):
+            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
+            return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
         release_index = int(request.form.get("release_index", 0))
@@ -161,7 +202,7 @@ def register_planning_routes(routes_bp):
                 "success",
             )
         else:
-            flash("Índice de release inválido.", "error")
+            flash("Indice de release invalido.", "error")
 
         return redirect(url_for("routes.plan"))
 
@@ -181,6 +222,7 @@ def register_planning_routes(routes_bp):
 
         total_release_points = planning_totals["total_release_points"]
         value_per_point = planning_totals["value_per_point"]
+        current_component_count = planning_totals["current_component_count"]
 
         try:
             sprint_plan_points = float(request.form.get("sprint_plan_points", 0))
@@ -188,11 +230,18 @@ def register_planning_routes(routes_bp):
             sprint_added_points = float(request.form.get("sprint_added_points", 0))
             sprint_planned_value = parse_brazilian_float(request.form.get("sprint_planned_value", 0))
             sprint_actual_cost = parse_brazilian_float(request.form.get("sprint_actual_cost", 0))
+            sprint_weeks = float(request.form.get("sprint_weeks", planning_totals["default_sprint_weeks"]) or 2)
         except (ValueError, TypeError):
             flash("Erro ao processar os valores inseridos.", "error")
             return redirect(url_for("routes.plan"))
 
-        history = recalculate_history(workspace.get("history", []), value_per_point, total_release_points)
+        history = recalculate_history(
+            workspace.get("history", []),
+            value_per_point,
+            total_release_points,
+            workspace.get("squad_cost", 0),
+            current_component_count,
+        )
         sprint_number = len(history) + 1
         total_done_points = sum(record.get("done_points", 0) for record in history) + sprint_done_points
         updated_total_release_points = total_release_points + sprint_added_points
@@ -210,6 +259,9 @@ def register_planning_routes(routes_bp):
             cumulative_done_points=total_done_points,
             total_release_points=updated_total_release_points,
             planned_value=sprint_planned_value,
+            sprint_weeks=sprint_weeks,
+            component_count=current_component_count,
+            squad_cost=workspace.get("squad_cost", 0),
         )
 
         history.append(record)
@@ -217,7 +269,13 @@ def register_planning_routes(routes_bp):
         final_value_per_point = (
             planning_totals["bac"] / final_total_release_points if final_total_release_points > 0 else 0
         )
-        workspace["history"] = recalculate_history(history, final_value_per_point, final_total_release_points)
+        workspace["history"] = recalculate_history(
+            history,
+            final_value_per_point,
+            final_total_release_points,
+            workspace.get("squad_cost", 0),
+            current_component_count,
+        )
         save_current_squad_workspace(workspace)
         flash(f"Sprint {sprint_number} registrada com sucesso!", "success")
         return redirect(url_for("routes.plan"))
@@ -236,7 +294,7 @@ def register_planning_routes(routes_bp):
         history = list(workspace.get("history", []))
         sprint_index = sprint_no - 1
         if sprint_index < 0 or sprint_index >= len(history):
-            flash("Sprint não encontrada para edição.", "error")
+            flash("Sprint nao encontrada para edicao.", "error")
             return redirect(url_for("routes.plan"))
 
         try:
@@ -245,16 +303,24 @@ def register_planning_routes(routes_bp):
             history[sprint_index]["added_points"] = float(request.form.get("sprint_added_points", 0))
             history[sprint_index]["PV"] = parse_brazilian_float(request.form.get("sprint_planned_value", 0))
             history[sprint_index]["AC"] = parse_brazilian_float(request.form.get("sprint_actual_cost", 0))
+            history[sprint_index]["sprint_weeks"] = float(request.form.get("sprint_weeks", 2) or 2)
         except (ValueError, TypeError):
             flash("Erro ao processar os dados da sprint.", "error")
             return redirect(url_for("routes.plan"))
 
+        planning_totals = get_planning_totals(workspace)
         total_release_sprints = sum(release.get("sprints", 0) for release in releases)
-        sprint_cost = workspace.get("squad_cost", 0) / 2 if workspace.get("squad_cost", 0) > 0 else 0
+        sprint_cost = planning_totals["sprint_cost"]
         bac = sprint_cost * total_release_sprints
         total_release_points = calculate_total_release_points(releases, history)
         value_per_point = bac / total_release_points if total_release_points > 0 else 0
-        workspace["history"] = recalculate_history(history, value_per_point, total_release_points)
+        workspace["history"] = recalculate_history(
+            history,
+            value_per_point,
+            total_release_points,
+            workspace.get("squad_cost", 0),
+            planning_totals["current_component_count"],
+        )
         save_current_squad_workspace(workspace)
         flash(f"Sprint {sprint_no} atualizada com sucesso!", "success")
         return redirect(url_for("routes.plan"))
@@ -268,17 +334,24 @@ def register_planning_routes(routes_bp):
         history = list(workspace.get("history", []))
         sprint_index = sprint_no - 1
         if sprint_index < 0 or sprint_index >= len(history):
-            flash("Sprint não encontrada para exclusão.", "error")
+            flash("Sprint nao encontrada para exclusao.", "error")
             return redirect(url_for("routes.plan"))
 
         history.pop(sprint_index)
         releases = normalize_releases(workspace.get("releases", []))
+        planning_totals = get_planning_totals(workspace)
         total_release_sprints = sum(release.get("sprints", 0) for release in releases)
-        sprint_cost = workspace.get("squad_cost", 0) / 2 if workspace.get("squad_cost", 0) > 0 else 0
+        sprint_cost = planning_totals["sprint_cost"]
         bac = sprint_cost * total_release_sprints
         total_release_points = calculate_total_release_points(releases, history)
         value_per_point = bac / total_release_points if total_release_points > 0 else 0
-        workspace["history"] = recalculate_history(history, value_per_point, total_release_points)
+        workspace["history"] = recalculate_history(
+            history,
+            value_per_point,
+            total_release_points,
+            workspace.get("squad_cost", 0),
+            planning_totals["current_component_count"],
+        )
         save_current_squad_workspace(workspace)
-        flash(f"Sprint {sprint_no} excluída com sucesso!", "success")
+        flash(f"Sprint {sprint_no} excluida com sucesso!", "success")
         return redirect(url_for("routes.plan"))

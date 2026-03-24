@@ -11,19 +11,20 @@ from route_helpers import (
     ensure_current_squad_workspace,
     get_current_squad_name,
     get_or_create_workspace_for_squad,
+    get_squads_data,
 )
 
 
 def register_dashboard_routes(routes_bp):
     @routes_bp.route("/", methods=["GET"])
     def index():
-        if "squads_data" in session and session["squads_data"]:
+        if get_squads_data():
             return redirect(url_for("routes.dashboard"))
         return redirect(url_for("routes.upload_file"))
 
     @routes_bp.route("/dashboard", methods=["GET"])
     def dashboard():
-        squads_data = session.get("squads_data", {})
+        squads_data = get_squads_data()
         if not squads_data:
             return redirect(url_for("routes.upload_file"))
 
@@ -50,7 +51,7 @@ def register_dashboard_routes(routes_bp):
 
     @routes_bp.route("/dashboard/squad/<squad_name>", methods=["GET"])
     def squad_dashboard(squad_name):
-        squads_data = session.get("squads_data", {})
+        squads_data = get_squads_data()
         if squad_name not in squads_data:
             flash("Squad inválida.", "error")
             return redirect(url_for("routes.dashboard"))
@@ -68,7 +69,7 @@ def register_dashboard_routes(routes_bp):
 
     @routes_bp.route("/switch_squad/<squad_name>", methods=["GET"])
     def switch_squad(squad_name):
-        squads_data = session.get("squads_data", {})
+        squads_data = get_squads_data()
         if squad_name not in squads_data:
             flash("Squad inválida.", "error")
             return redirect(url_for("routes.dashboard"))

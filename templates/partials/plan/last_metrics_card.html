@@ -1,9 +1,12 @@
 {% if last_metrics %}
 <div class="card mb-4">
-    <div class="card-header">
-        Métricas da Última Sprint
+    <div class="card-header collapsible-card-header">
+        <span>Metricas da Ultima Sprint</span>
+        <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-last-metrics-body" aria-expanded="true" aria-controls="plan-last-metrics-body">
+            Recolher
+        </button>
     </div>
-    <div class="card-body">
+    <div class="card-body collapse show" id="plan-last-metrics-body">
         <div class="grid-3">
             <div class="metric-card">
                 <div class="label">PV (Planned Value)</div>
@@ -33,10 +36,15 @@
                 </div>
             </div>
             <div class="metric-card">
-                <div class="label">Status</div>
+                <div class="label">Status Acumulado</div>
                 <div class="value {% if 'OK' in last_metrics.status %}status-ok{% else %}status-warning{% endif %}">
                     {{ last_metrics.status }}
                 </div>
+                {% if last_metrics.sprint_status is defined %}
+                <div class="small text-muted">
+                    Status da sprint: {{ last_metrics.sprint_status }}
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -57,7 +65,7 @@
 
         <div class="grid-2 mt-3">
             <div class="metric-card">
-                <div class="label">% Concluída do Projeto</div>
+                <div class="label">% Concluida do Projeto</div>
                 <div class="value text-info">
                     {% if last_metrics.completion_percentage is defined %}
                         {{ last_metrics.completion_percentage }}%

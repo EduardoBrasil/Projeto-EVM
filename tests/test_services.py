@@ -99,11 +99,11 @@ def test_planning_context_and_summary_include_added_points():
         "history": [
             {"plan_points": 10, "done_points": 8, "added_points": 4, "AC": 80, "PV": 100}
         ],
-        "members": [{"salary": 1000, "hourly": 10}],
-        "squad_members_from_file": [{"cargo": "Dev"}],
+        "members": [{"salary": 1000, "hourly": 10, "quantity": 2}],
+        "squad_members_from_file": [{"cargo": "Dev", "qtde": 3}],
         "squad_cost": 2000,
     }
-    squad_info = {"members": [{"cargo": "Dev"}], "total_cost": 2000}
+    squad_info = {"members": [{"cargo": "Dev", "qtde": 3}], "total_cost": 2000}
 
     context = service.get_planning_context(workspace)
     summary = service.calculate_workspace_summary("Alpha", workspace, squad_info)
@@ -112,3 +112,34 @@ def test_planning_context_and_summary_include_added_points():
     assert summary["total_points"] == 44
     assert summary["history_count"] == 1
     assert summary["last_metrics"]["completion_percentage"] > 0
+    assert context.current_component_count == 5
+
+
+def test_component_count_supports_fractional_allocations():
+    service = PlanningService()
+    workspace = {
+        "squad_members_from_file": [{"qtde": 0.5}, {"qtde": 1}],
+        "members": [{"quantity": 0.25}, {"quantity": 1}],
+    }
+
+    assert service.calculate_component_count(workspace) == 2.75
+
+
+def test_executive_status_considers_project_projection_delay():
+    service = PlanningService()
+    workspace = {
+        "releases": [{"points": 40, "sprints": 4}],
+        "history": [
+            {"plan_points": 10, "done_points": 4, "added_points": 8, "AC": 80, "PV": 100},
+            {"plan_points": 10, "done_points": 4, "added_points": 8, "AC": 80, "PV": 100},
+        ],
+        "members": [],
+        "squad_members_from_file": [],
+        "squad_cost": 2000,
+    }
+    squad_info = {"members": [], "total_cost": 2000}
+
+    summary = service.calculate_workspace_summary("Alpha", workspace, squad_info)
+
+    assert summary["projection"]["delay_sprints"] > 0
+    assert "atrasado" in summary["status"].lower()

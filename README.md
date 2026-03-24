@@ -7,6 +7,7 @@ Aplicativo web para acompanhamento de squads com EVM (Earned Value Management), 
 ```text
 Projeto EVM/
 |- app.py
+|- auth_routes.py
 |- routes.py
 |- dashboard_routes.py
 |- squad_routes.py
@@ -14,6 +15,7 @@ Projeto EVM/
 |- chart_routes.py
 |- route_helpers.py
 |- services.py
+|- storage.py
 |- models.py
 |- charts.py
 |- templates/
@@ -24,7 +26,7 @@ Projeto EVM/
 |- requirements-dev.txt
 ```
 
-## Execução
+## Execucao
 
 1. Crie a virtualenv:
 
@@ -32,25 +34,45 @@ Projeto EVM/
 python -m venv .venv
 ```
 
-2. Ative o ambiente:
+2. Se estiver no PowerShell, ative o ambiente:
 
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
-3. Instale as dependências:
+Se o PowerShell bloquear a ativacao, rode:
 
 ```powershell
-pip install -r requirements.txt
+Set-ExecutionPolicy -Scope Process Bypass
+.venv\Scripts\Activate.ps1
 ```
 
-4. Suba a aplicação:
+3. Instale as dependencias:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+4. Suba a aplicacao:
 
 ```powershell
 python app.py
 ```
 
-5. Acesse:
+5. Alternativa mais segura, sem depender da ativacao da virtualenv:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe app.py
+```
+
+6. Atalho de inicializacao em PowerShell:
+
+```powershell
+.\run.ps1
+```
+
+7. Acesse:
 
 ```text
 http://127.0.0.1:5000
@@ -58,15 +80,15 @@ http://127.0.0.1:5000
 
 ## Testes
 
-Para rodar a suíte com cobertura:
+Para rodar a suite com cobertura:
 
 ```powershell
-pip install -r requirements-dev.txt
-pytest --cov --cov-report=term-missing
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest --cov --cov-report=term-missing
 ```
 
-## Observações
+## Observacoes
 
-- Cada squad possui planejamento isolado.
-- O frontend usa templates parciais para reduzir repetição.
-- A versão desktop antiga foi removida do repositório.
+- Cada usuario possui suas squads e workspaces persistidos localmente em SQLite.
+- O frontend usa templates parciais para reduzir repeticoes.
+- Se aparecer `ModuleNotFoundError`, quase sempre significa que a aplicacao foi executada fora da `.venv`.

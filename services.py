@@ -22,6 +22,8 @@ class PlanningContext:
     bac: float
     value_per_point: float
     history: list
+    default_sprint_weeks: float
+    current_component_count: int
 
 
 class SprintMetricsStrategy(ABC):
@@ -153,6 +155,41 @@ class PlanningService:
         )
         return base_points + added_points
 
+    def calculate_component_count(self, workspace, squad_info=None):
+        file_members = workspace.get("squad_members_from_file")
+        if file_members is None:
+            file_members = (squad_info or {}).get("members", [])
+
+        file_count = 0
+        for member in file_members:
+            quantity = member.get("qtde", 1)
+            try:
+                file_count += float(quantity)
+            except (TypeError, ValueError):
+                file_count += 1.0
+
+        manual_members = workspace.get("members", [])
+        manual_count = 0
+        for member in manual_members:
+            quantity = member.get("quantity", 1)
+            try:
+                manual_count += float(quantity)
+            except (TypeError, ValueError):
+                manual_count += 1.0
+        return file_count + manual_count
+
+    def calculate_sprint_cost(
+        self,
+        squad_cost,
+        sprint_weeks=2.0,
+        component_count=0,
+    ):
+        base_component_count = max(float(component_count or 0), 0)
+        if squad_cost <= 0 or base_component_count <= 0 or sprint_weeks <= 0:
+            return 0.0
+
+        return squad_cost * (float(sprint_weeks) / 4.2)
+
     def build_sprint_record(
         self,
         sprint_number,
@@ -164,6 +201,9 @@ class PlanningService:
         cumulative_done_points,
         total_release_points,
         planned_value=None,
+        sprint_weeks=2.0,
+        component_count=0,
+        squad_cost=0,
     ):
         strategy = self.strategy_factory.create(planned_value)
         metrics = strategy.calculate_metrics(
@@ -178,11 +218,19 @@ class PlanningService:
             if total_release_points > 0
             else 0
         )
+        suggested_cost = self.calculate_sprint_cost(
+            squad_cost=squad_cost,
+            sprint_weeks=sprint_weeks,
+            component_count=component_count,
+        )
         return {
             "sprint_no": sprint_number,
             "plan_points": planned_points,
             "done_points": earned_points,
             "added_points": added_points,
+            "sprint_weeks": round(float(sprint_weeks), 2),
+            "component_count": round(float(component_count or 0), 2),
+            "suggested_cost": round(suggested_cost, 2),
             "PV": metrics["PV"],
             "EV": metrics["EV"],
             "AC": metrics["AC"],
@@ -194,10 +242,20 @@ class PlanningService:
             "completion_percentage": round(completion_percentage, 2),
         }
 
-    def recalculate_history(self, history, value_per_point, total_release_points):
+    def recalculate_history(
+        self,
+        history,
+        value_per_point,
+        total_release_points,
+        squad_cost=0,
+        component_count=0,
+    ):
         recalculated_history = []
         cumulative_done_points = 0.0
         cumulative_added_points = 0.0
+        cumulative_pv = 0.0
+        cumulative_ev = 0.0
+        cumulative_ac = 0.0
         total_added_points = sum(float(record.get("added_points", 0) or 0) for record in history)
         base_total_release_points = max(total_release_points - total_added_points, 0)
 
@@ -206,6 +264,8 @@ class PlanningService:
             done_points = float(record.get("done_points", 0) or 0)
             added_points = float(record.get("added_points", 0) or 0)
             actual_cost = self.parse_brazilian_float(record.get("AC", 0))
+            sprint_weeks = float(record.get("sprint_weeks", 2) or 2)
+            record_component_count = float(record.get("component_count", component_count) or component_count or 0)
             planned_value = (
                 self.parse_brazilian_float(record.get("PV", 0))
                 if record.get("PV") is not None
@@ -215,19 +275,38 @@ class PlanningService:
             cumulative_done_points += done_points
             cumulative_added_points += added_points
             current_total_release_points = base_total_release_points + cumulative_added_points
-            recalculated_history.append(
-                self.build_sprint_record(
-                    sprint_number=index,
-                    planned_points=planned_points,
-                    earned_points=done_points,
-                    added_points=added_points,
-                    actual_cost=actual_cost,
-                    value_per_point=value_per_point,
-                    cumulative_done_points=cumulative_done_points,
-                    total_release_points=current_total_release_points,
-                    planned_value=planned_value,
-                )
+            record_snapshot = self.build_sprint_record(
+                sprint_number=index,
+                planned_points=planned_points,
+                earned_points=done_points,
+                added_points=added_points,
+                actual_cost=actual_cost,
+                value_per_point=value_per_point,
+                cumulative_done_points=cumulative_done_points,
+                total_release_points=current_total_release_points,
+                planned_value=planned_value,
+                sprint_weeks=sprint_weeks,
+                component_count=record_component_count,
+                squad_cost=squad_cost,
             )
+            record_snapshot["suggested_cost"] = round(
+                self.calculate_sprint_cost(
+                    squad_cost=squad_cost,
+                    sprint_weeks=sprint_weeks,
+                    component_count=record_component_count,
+                ),
+                2,
+            )
+            record_snapshot["sprint_status"] = record_snapshot["status"]
+            cumulative_pv += record_snapshot["PV"]
+            cumulative_ev += record_snapshot["EV"]
+            cumulative_ac += record_snapshot["AC"]
+            cumulative_cpi = cumulative_ev / cumulative_ac if cumulative_ac > 0 else 0
+            cumulative_spi = cumulative_ev / cumulative_pv if cumulative_pv > 0 else 0
+            record_snapshot["status"] = EVMCalculator.get_status(cumulative_cpi, cumulative_spi)
+            record_snapshot["project_cpi"] = round(cumulative_cpi, 2)
+            record_snapshot["project_spi"] = round(cumulative_spi, 2)
+            recalculated_history.append(record_snapshot)
         return recalculated_history
 
     def calculate_release_projection(
@@ -294,11 +373,33 @@ class PlanningService:
             "projected_remaining_sprints": round(projected_remaining_sprints, 2),
         }
 
+    def calculate_project_status(self, projection, fallback_status="Não iniciado"):
+        """Define o status executivo do projeto com base na projeção consolidada."""
+        if not projection:
+            return fallback_status
+
+        delayed = projection.get("delay_sprints", 0) > 0
+        over_budget = projection.get("cost_variance_at_completion", 0) > 0
+
+        if delayed and over_budget:
+            return "⚠️ Atenção: Acima do custo e atrasado"
+        if delayed:
+            return "⚠️ Atenção: Atrasado"
+        if over_budget:
+            return "⚠️ Atenção: Acima do custo"
+        return "✓ OK"
+
     def calculate_planning_totals(self, workspace):
         releases = self.normalize_releases(workspace.get("releases", []))
         squad_cost = workspace.get("squad_cost", 0)
+        default_sprint_weeks = float(workspace.get("default_sprint_weeks", 2) or 2)
+        current_component_count = self.calculate_component_count(workspace)
         total_release_sprints = sum(release.get("sprints", 0) for release in releases)
-        sprint_cost = squad_cost / 2 if squad_cost > 0 else 0
+        sprint_cost = self.calculate_sprint_cost(
+            squad_cost=squad_cost,
+            sprint_weeks=default_sprint_weeks,
+            component_count=current_component_count,
+        )
         bac = sprint_cost * total_release_sprints
         total_release_points = self.calculate_total_release_points(
             releases,
@@ -312,6 +413,8 @@ class PlanningService:
             "sprint_cost": sprint_cost,
             "bac": bac,
             "value_per_point": value_per_point,
+            "default_sprint_weeks": default_sprint_weeks,
+            "current_component_count": current_component_count,
         }
 
     def get_planning_context(self, workspace):
@@ -320,6 +423,8 @@ class PlanningService:
             workspace.get("history", []),
             totals["value_per_point"],
             totals["total_release_points"],
+            workspace.get("squad_cost", 0),
+            totals["current_component_count"],
         )
         return PlanningContext(
             releases=totals["releases"],
@@ -330,13 +435,15 @@ class PlanningService:
             bac=totals["bac"],
             value_per_point=totals["value_per_point"],
             history=history,
+            default_sprint_weeks=totals["default_sprint_weeks"],
+            current_component_count=totals["current_component_count"],
         )
 
     def calculate_workspace_summary(self, squad_name, workspace, squad_info):
         file_members = workspace.get("squad_members_from_file", squad_info.get("members", []))
         members = workspace.get("members", [])
         manual_cost = sum(
-            member.get("salary", 0) + 160 * member.get("hourly", 0)
+            (member.get("salary", 0) + 160 * member.get("hourly", 0)) * member.get("quantity", 1)
             for member in members
         )
         base_total_cost = squad_info.get("total_cost", 0)
@@ -352,8 +459,8 @@ class PlanningService:
         )
         return {
             "name": squad_name,
-            "members_from_file": len(file_members),
-            "manual_members": len(members),
+            "members_from_file": sum(float(member.get("qtde", 1) or 1) for member in file_members) if file_members else 0,
+            "manual_members": sum(float(member.get("quantity", 1) or 1) for member in members) if members else 0,
             "squad_cost": squad_cost,
             "sprint_cost": context.sprint_cost,
             "releases_count": len(context.releases),
@@ -362,8 +469,11 @@ class PlanningService:
             "history_count": len(context.history),
             "bac": context.bac,
             "completion_percentage": last_metrics.get("completion_percentage", 0) if last_metrics else 0,
-            "status": last_metrics.get("status", "Não iniciado") if last_metrics else "Não iniciado",
+            "status": self.calculate_project_status(
+                projection,
+                last_metrics.get("status", "Não iniciado") if last_metrics else "Não iniciado",
+            ),
+            "history": context.history,
             "last_metrics": last_metrics,
             "projection": projection,
         }
-

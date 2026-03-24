@@ -1,8 +1,11 @@
 <div class="card mb-4">
-    <div class="card-header">
-        Configurar Releases
+    <div class="card-header collapsible-card-header">
+        <span>Configuracao de Releases</span>
+        <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-releases-body" aria-expanded="true" aria-controls="plan-releases-body">
+            Recolher
+        </button>
     </div>
-    <div class="card-body">
+    <div class="card-body collapse show" id="plan-releases-body">
         {% if not releases %}
         <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end">
             <div class="col-md-6">
@@ -14,58 +17,29 @@
             </div>
         </form>
         {% else %}
-        <div class="table-responsive mb-3">
+        <div class="alert alert-light border mb-3">
+            As releases foram configuradas e agora estao bloqueadas para manter a integridade do planejamento.
+        </div>
+        <div class="table-responsive">
             <table class="table table-border">
                 <thead>
                     <tr>
                         <th>Release</th>
                         <th>Pontos</th>
                         <th>Sprints</th>
-                        <th>Ação</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for i, release in releases %}
                     <tr>
                         <td><strong>Release {{ i }}</strong></td>
-                        <td>
-                            <form method="POST" action="{{ url_for('routes.update_release_points') }}" style="display: inline; display: flex; gap: 5px;">
-                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
-                                <input type="number" class="form-control form-control-sm" name="release_points" value="{{ release.points }}" min="1" step="1" style="max-width: 100px;" required>
-                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('routes.update_release_sprints') }}" style="display: inline; display: flex; gap: 5px;">
-                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
-                                <input type="number" class="form-control form-control-sm" name="release_sprints" value="{{ release.sprints }}" min="1" step="1" style="max-width: 80px;" required>
-                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('routes.delete_release') }}" style="display: inline;">
-                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remover esta release?');">Remover</button>
-                            </form>
-                        </td>
+                        <td>{{ release.points }}</td>
+                        <td>{{ release.sprints }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <form method="POST" action="{{ url_for('routes.add_release') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label">Pontos da Nova Release</label>
-                <input type="number" class="form-control" name="new_release_points" placeholder="Ex: 50" min="1" step="1" required>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Sprints da Release</label>
-                <input type="number" class="form-control" name="new_release_sprints" placeholder="Ex: 5" min="1" step="1" required>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-success w-100">Adicionar Release</button>
-            </div>
-        </form>
         {% endif %}
     </div>
 </div>

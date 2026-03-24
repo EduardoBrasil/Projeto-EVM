@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Configuração da Squad - EVM Web{% endblock %}
-{% block page_title %}Configuração da Squad{% endblock %}
+{% block title %}Configuracao da Squad - EVM Web{% endblock %}
+{% block page_title %}Configuracao da Squad{% endblock %}
 
 {% block content %}
 <div class="page-intro">
     <h2>{{ current_squad }}</h2>
-    <p>Revise a composição da squad, ajuste a base da planilha e acrescente membros extras antes de seguir para o planejamento.</p>
+    <p>Revise a composicao da squad, ajuste quantidades e custos e salve as alteracoes antes de seguir para o planejamento.</p>
 </div>
 
 <section class="grid-3">
@@ -26,8 +26,9 @@
 
 <section class="dashboard-grid">
     <div class="card span-8">
-        <div class="card-header">Membros da Planilha</div>
+        <div class="card-header">Visao do Projeto</div>
         <div class="card-body">
+            <p class="text-muted mb-4">Edite aqui a composicao base da squad. Qualquer alteracao salva atualiza o custo mensal e refletira automaticamente no custo da sprint.</p>
             {% include "partials/setup/file_members_table.html" %}
         </div>
     </div>

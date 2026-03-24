@@ -1,9 +1,14 @@
 <header class="topbar">
     <div>
         <div class="eyebrow">Earned Value Management</div>
-        <h1 class="topbar-title">{% block page_title %}Visão do Projeto{% endblock %}</h1>
+        <h1 class="topbar-title">{% block page_title %}Visao do Projeto{% endblock %}</h1>
     </div>
     <div class="topbar-context">
+        {% if nav_is_authenticated %}
+        <span class="context-chip">Usuario: {{ nav_username }}</span>
         <span class="context-chip">Squad ativa: {{ nav_current_squad or 'Nenhuma' }}</span>
+        {% else %}
+        <span class="context-chip">Acesse para salvar seus projetos</span>
+        {% endif %}
     </div>
 </header>
