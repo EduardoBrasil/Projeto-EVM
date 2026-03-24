@@ -1,0 +1,114 @@
+{% if history and history|length > 0 %}
+<div class="card mb-4">
+    <div class="card-header collapsible-card-header">
+        <span>Historico de Sprints</span>
+        <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-history-body" aria-expanded="true" aria-controls="plan-history-body">
+            Recolher
+        </button>
+    </div>
+    <div class="card-body collapse show" id="plan-history-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Sprint</th>
+                        <th>Semanas</th>
+                        <th>Equipe</th>
+                        <th>Planejado</th>
+                        <th>Concluido</th>
+                        <th>Adicionado</th>
+                        <th>PV (R$)</th>
+                        <th>EV (R$)</th>
+                        <th>AC (R$)</th>
+                        <th>Custo sug.</th>
+                        <th>CPI</th>
+                        <th>SPI</th>
+                        <th>Status</th>
+                        <th>Acoes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in history %}
+                    <tr>
+                        <td><strong>#{{ record.sprint_no }}</strong></td>
+                        <td>{{ record.sprint_weeks | round(1) }}</td>
+                        <td>{{ record.component_count }}</td>
+                        <td>{{ record.plan_points | round(0) }}</td>
+                        <td>{{ record.done_points | round(0) }}</td>
+                        <td>{{ record.added_points | round(0) }}</td>
+                        <td>{{ record.PV | currency }}</td>
+                        <td>{{ record.EV | currency }}</td>
+                        <td>{{ record.AC | currency }}</td>
+                        <td>{{ record.suggested_cost | currency }}</td>
+                        <td class="{% if record.CPI >= 1 %}text-success{% else %}text-danger{% endif %}">
+                            {{ record.CPI | round(2) }}
+                        </td>
+                        <td class="{% if record.SPI >= 1 %}text-success{% else %}text-danger{% endif %}">
+                            {{ record.SPI | round(2) }}
+                        </td>
+                        <td>
+                            <span class="badge {% if 'OK' in record.status %}bg-success{% else %}bg-warning{% endif %}">
+                                {{ record.status }}
+                            </span>
+                            {% if record.sprint_status is defined %}
+                            <div class="small text-muted mt-1">
+                                Sprint: {{ record.sprint_status }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#edit-sprint-{{ record.sprint_no }}" aria-expanded="false" aria-controls="edit-sprint-{{ record.sprint_no }}">
+                                    Editar
+                                </button>
+                                <form method="POST" action="{{ url_for('routes.delete_sprint', sprint_no=record.sprint_no) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Excluir a sprint #{{ record.sprint_no }}?');">
+                                        Excluir
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="edit-sprint-{{ record.sprint_no }}">
+                        <td colspan="14" class="bg-light">
+                            <form method="POST" action="{{ url_for('routes.update_sprint', sprint_no=record.sprint_no) }}" class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">Pontos Planejados</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_plan_points" value="{{ record.plan_points }}" min="0" step="1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Pontos Concluidos</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_done_points" value="{{ record.done_points }}" min="0" step="1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Pontos Adicionados</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_added_points" value="{{ record.added_points }}" min="0" step="1" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Semanas</label>
+                                    <input type="number" class="form-control form-control-sm" name="sprint_weeks" value="{{ record.sprint_weeks }}" step="0.5" min="0.5" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Valor Planejado (PV)</label>
+                                    <input type="text" class="form-control form-control-sm" name="sprint_planned_value" value="{{ '{:,.2f}'.format(record.PV).replace(',', 'X').replace('.', ',').replace('X', '.') }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Custo Real (AC)</label>
+                                    <input type="text" class="form-control form-control-sm" name="sprint_actual_cost" value="{{ '{:,.2f}'.format(record.AC).replace(',', 'X').replace('.', ',').replace('X', '.') }}" required>
+                                    <div class="small text-muted mt-1">
+                                        Custo sugerido para essa configuracao: {{ record.suggested_cost | currency }}.
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-sm btn-primary">Salvar alteracoes</button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}

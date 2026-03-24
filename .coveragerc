@@ -1,0 +1,9 @@
+[run]
+source =
+    app
+    routes
+    models
+    services
+    charts
+omit =
+    tests/*

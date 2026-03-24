@@ -1,0 +1,44 @@
+{% if members_from_file %}
+<form method="POST" action="{{ url_for('routes.update_file_members') }}">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Cargo</th>
+                    <th>Area</th>
+                    <th>Qtde</th>
+                    <th>Custo M H/H</th>
+                    <th>Preco M/HH</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members_from_file %}
+                <tr>
+                    <td><strong>{{ member.cargo }}</strong></td>
+                    <td>{{ member.area }}</td>
+                    <td class="setup-qty-cell">
+                        <input type="number" class="form-control form-control-sm" name="file_member_quantity_{{ loop.index0 }}" value="{{ member.qtde }}" min="0" step="0.25">
+                    </td>
+                    <td>{{ member.custo_mhh | currency }}</td>
+                    <td>{{ member.preco_mhh | currency }}</td>
+                    <td>{{ member.total_grupo | currency }}</td>
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" form="remove-file-member-{{ loop.index0 }}" onclick="return confirm('Tem certeza que deseja remover este membro?')">Remover</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex justify-content-end mt-3">
+        <button type="submit" class="btn btn-primary">Salvar alteracoes da planilha</button>
+    </div>
+</form>
+{% for member in members_from_file %}
+<form id="remove-file-member-{{ loop.index0 }}" method="POST" action="{{ url_for('routes.remove_file_member', member_index=loop.index0) }}"></form>
+{% endfor %}
+{% else %}
+<div class="empty-state">Nenhum membro carregado da planilha.</div>
+{% endif %}

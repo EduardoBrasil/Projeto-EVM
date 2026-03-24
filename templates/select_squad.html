@@ -1,79 +1,92 @@
 {% extends "base.html" %}
 
-{% block title %}Seleção de Squad - EVM Web{% endblock %}
+{% block title %}Selecionar Squad - EVM Web{% endblock %}
+{% block page_title %}Selecionar Squad{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="mb-2">🎯 Selecionar Squad</h2>
-        <p class="text-muted">Passo 2: Escolha uma squad para configurar o planejamento</p>
-    </div>
+<div class="page-intro">
+    <h2>Escolha a squad que deseja analisar.</h2>
+    <p>Aqui voce pode abrir, criar ou remover squads com uma visao consolidada antes de seguir para o planejamento.</p>
 </div>
 
-<!-- Alerts -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<section class="dashboard-grid">
+    <div class="card span-8">
+        <div class="card-header">Squads Disponiveis</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Squad</th>
+                            <th>Membros</th>
+                            <th>Custo mensal</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for squad_name, squad_data in squads.items() %}
+                        <tr>
+                            <td><strong>{{ squad_name }}</strong></td>
+                            <td>{{ squad_data.members|length }}</td>
+                            <td>{{ squad_data.total_cost | currency }}</td>
+                            <td class="text-end">
+                                <div class="table-actions">
+                                    <a href="{{ url_for('routes.squad_dashboard', squad_name=squad_name) }}" class="btn btn-sm btn-outline-secondary">Abrir</a>
+                                    <form method="POST" action="{{ url_for('routes.delete_squad', squad_name=squad_name) }}" onsubmit="return confirm('Deseja remover a squad {{ squad_name }}? Esta acao nao pode ser desfeita.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
-
-<!-- Card Seleção -->
-<div class="card mb-4">
-    <div class="card-header">
-        📌 Squads Disponíveis ({{ squads|length }})
-    </div>
-    <div class="card-body">
-        <div class="table-responsive mb-3">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Squad</th>
-                        <th>Membros</th>
-                        <th>Custo Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for squad_name, squad_data in squads.items() %}
-                    <tr>
-                        <td><strong>{{ squad_name }}</strong></td>
-                        <td>{{ squad_data.members|length }}</td>
-                        <td>{{ squad_data.total_cost | currency }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
-        <form method="POST" class="row g-3 align-items-end">
-            <div class="col-md-8">
-                <label class="form-label">Selecione uma squad:</label>
-                <select class="form-select form-select-lg" name="selected_squad" required>
-                    <option value="">-- Escolha uma squad --</option>
-                    {% for squad_name in squads %}
+    </div>
+
+    <div class="card span-4">
+        <div class="card-header">Ativar Squad</div>
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Squad</label>
+                    <select class="form-select" name="selected_squad" required>
+                        <option value="">Escolha uma squad</option>
+                        {% for squad_name in squads %}
                         <option value="{{ squad_name }}">{{ squad_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-success w-100">
-                    ✓ Selecionar
-                </button>
-            </div>
-        </form>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">Abrir squad</button>
+                </div>
+                <div class="col-12">
+                    <a href="{{ url_for('routes.dashboard') }}" class="btn btn-outline-secondary w-100">Voltar ao dashboard</a>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
+</section>
 
-<!-- Botão Voltar -->
-<div class="row mt-4">
-    <div class="col-12">
-        <a href="{{ url_for('routes.upload_file') }}" class="btn btn-outline-secondary">
-            ← Voltar ao Upload
-        </a>
+<section class="dashboard-grid mt-4">
+    <div class="card span-4">
+        <div class="card-header">Nova Squad</div>
+        <div class="card-body">
+            <form method="POST" class="row g-3">
+                <input type="hidden" name="create_squad" value="1">
+                <div class="col-12">
+                    <label class="form-label">Nome da nova squad</label>
+                    <input type="text" class="form-control" name="new_squad_name" placeholder="Ex: Captura SDK" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success w-100">Criar squad</button>
+                </div>
+                <div class="col-12">
+                    <p class="text-muted small mb-0">A squad sera criada vazia e aberta direto na configuracao.</p>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
-
+</section>
 {% endblock %}

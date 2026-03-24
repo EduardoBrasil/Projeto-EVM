@@ -1,322 +1,142 @@
 {% extends "base.html" %}
 
 {% block title %}Planejamento - EVM Web{% endblock %}
+{% block page_title %}Planejamento da Squad{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2 class="mb-2">📈 Planejamento de Sprints - <strong>{{ current_squad }}</strong></h2>
-        <p class="text-muted">Passo 4: Configure o planejamento do projeto e gerencie as sprints</p>
+        <h2 class="mb-2">Planejamento de Sprints - <strong>{{ current_squad }}</strong></h2>
+        <p class="text-muted">Passo 4: configure a duracao padrao da sprint e acompanhe o projeto com uma visao mais limpa.</p>
     </div>
 </div>
 
-<!-- Navegação de Voltar -->
-<div class="mb-3">
-    <a href="{{ url_for('routes.setup') }}" class="btn btn-outline-primary btn-sm">← Voltar à Configuração</a>
-    <a href="{{ url_for('routes.reset') }}" class="btn btn-outline-danger btn-sm">🔄 Novo Upload</a>
+<div class="mb-3 quick-actions">
+    <a href="{{ url_for('routes.setup') }}" class="btn btn-outline-primary btn-sm">Voltar a configuracao</a>
+    <a href="{{ url_for('routes.reset') }}" class="btn btn-outline-danger btn-sm">Novo upload</a>
 </div>
 
-<!-- Card Configuração de Planejamento -->
-<div class="card mb-4">
-    <div class="card-header">
-        ⚡ Configurar Releases
-    </div>
-    <div class="card-body">
-        {% if not releases %}
-        <!-- Definir Quantidade de Releases -->
-        <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label">Quantidade de Releases</label>
-                <input type="number" class="form-control" name="num_releases" 
-                       placeholder="Ex: 3" min="1" step="1" required>
-            </div>
-            <div class="col-md-6">
-                <button type="submit" name="create_releases" class="btn btn-primary w-100">✓ Criar Releases</button>
-            </div>
-        </form>
-        {% else %}
-        <!-- Tabela de Releases com Pontos e Sprints -->
-        <div class="table-responsive mb-3">
-            <table class="table table-border">
-                <thead>
-                    <tr>
-                        <th>Release</th>
-                        <th>Pontos</th>
-                        <th>Sprints</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for i, release in releases %}
-                    <tr>
-                        <td><strong>Release {{ i }}</strong></td>
-                        <td>
-                            <form method="POST" action="{{ url_for('routes.update_release_points') }}" style="display: inline; display: flex; gap: 5px;">
-                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
-                                <input type="number" class="form-control form-control-sm" name="release_points" 
-                                       value="{{ release.points }}" min="1" step="1" style="max-width: 100px;" required>
-                                <button type="submit" class="btn btn-sm btn-primary">💾</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('routes.update_release_sprints') }}" style="display: inline; display: flex; gap: 5px;">
-                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
-                                <input type="number" class="form-control form-control-sm" name="release_sprints" 
-                                       value="{{ release.sprints }}" min="1" step="1" style="max-width: 80px;" required>
-                                <button type="submit" class="btn btn-sm btn-primary">💾</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('routes.delete_release') }}" style="display: inline;">
-                                <input type="hidden" name="release_index" value="{{ loop.index0 }}">
-                                <button type="submit" class="btn btn-sm btn-danger" 
-                                        onclick="return confirm('Remover esta release?');">🗑️</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{% include "partials/plan/releases_card.html" %}
+
+<section class="dashboard-grid mb-4">
+    <div class="card span-4">
+        <div class="card-header collapsible-card-header">
+            <span>Configuracao Base da Sprint</span>
+            <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-settings-body" aria-expanded="true" aria-controls="plan-settings-body">
+                Recolher
+            </button>
         </div>
-        <!-- Adicionar Nova Release -->
-        <form method="POST" action="{{ url_for('routes.add_release') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label">Pontos da Nova Release</label>
-                <input type="number" class="form-control" name="new_release_points" 
-                       placeholder="Ex: 50" min="1" step="1" required>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Sprints da Release</label>
-                <input type="number" class="form-control" name="new_release_sprints" 
-                       placeholder="Ex: 5" min="1" step="1" required>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-success w-100">➕ Adicionar Release</button>
-            </div>
-        </form>
-        {% endif %}
+        <div class="card-body collapse show" id="plan-settings-body">
+            <form method="POST" action="{{ url_for('routes.update_sprint_settings') }}" class="row g-3 align-items-end">
+                <div class="col-md-7">
+                    <label class="form-label">Semanas por sprint</label>
+                    <input type="number" class="form-control" name="default_sprint_weeks" value="{{ default_sprint_weeks }}" step="0.5" min="0.5" required>
+                </div>
+                <div class="col-md-5">
+                    <button type="submit" class="btn btn-primary w-100">Salvar</button>
+                </div>
+                <div class="col-12">
+                    <p class="text-muted small mb-0">A composicao da equipe agora e ajustada na tela de configuracao da squad.</p>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-<!-- Info Boxes -->
-<div class="grid-2">
+    <div class="card span-8">
+        <div class="card-header collapsible-card-header">
+            <span>Parametros Atuais</span>
+            <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-params-body" aria-expanded="true" aria-controls="plan-params-body">
+                Recolher
+            </button>
+        </div>
+        <div class="card-body collapse show" id="plan-params-body">
+            <div class="grid-3">
+                <div class="info-box">
+                    <h6>Custo Squad Mensal</h6>
+                    <div class="amount">{{ squad_cost | currency }}</div>
+                </div>
+                <div class="info-box">
+                    <h6>Custo Base da Sprint</h6>
+                    <div class="amount">{{ sprint_cost | currency }}</div>
+                </div>
+                <div class="info-box">
+                    <h6>Componentes Atuais</h6>
+                    <div class="amount">{{ current_component_count | round(2) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="grid-3">
     <div class="info-box">
-        <h6>💰 Custo Squad</h6>
-        <div class="amount">{{ squad_cost | currency }}</div>
+        <h6>Duracao Padrao</h6>
+        <div class="amount">{{ default_sprint_weeks }} semana(s)</div>
     </div>
     <div class="info-box">
-        <h6>💵 BAC (Budget at Completion)</h6>
+        <h6>BAC (Budget at Completion)</h6>
         <div class="amount">{{ bac | currency }}</div>
     </div>
-</div>
-
-<!-- Card Registro de Sprint -->
-<div class="card mb-4 mt-4">
-    <div class="card-header">
-        🚀 Registrar Sprint
-    </div>
-    <div class="card-body">
-        <div class="alert alert-info mb-3">
-            <strong>Sprint Vigente:</strong> {{ current_sprint }} de {{ total_sprints }}
-        </div>
-        <p class="text-muted mb-3">Total de pontos definidos: <strong>{{ total_points }}</strong></p>
-        <form id="sprint-form" method="POST" action="{{ url_for('routes.add_sprint') }}" class="row g-3 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label">Pontos Planejados</label>
-                <input type="number" class="form-control" name="sprint_plan_points" 
-                       placeholder="0" step="1" required>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Pontos Concluídos</label>
-                <input type="number" class="form-control" name="sprint_done_points" 
-                       placeholder="0" step="1" required>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Pontos Adicionados</label>
-                <input type="number" class="form-control" name="sprint_added_points" 
-                       placeholder="0" step="1" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Valor Planejado (PV)</label>
-                <input type="text" class="form-control" name="sprint_planned_value"
-                       placeholder="0,00" pattern="^\d{1,3}(\.\d{3})*(,\d{1,4})?$" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Custo Real (AC)</label>
-                <input type="text" class="form-control" name="sprint_actual_cost" 
-                       placeholder="0,00" pattern="^\d{1,3}(\.\d{3})*(,\d{1,4})?$" required>
-            </div>
-        </form>
-        <p class="text-muted small mt-3 mb-0">EV continua sendo calculado automaticamente com base nos pontos concluídos e no valor por ponto da squad.</p>
-        <div class="row mt-3">
-            <div class="col-12">
-                <button type="submit" form="sprint-form" class="btn btn-success w-100">✓ Adicionar Sprint</button>
-            </div>
-        </div>
+    <div class="info-box">
+        <h6>Valor por Ponto</h6>
+        <div class="amount">{{ value_per_point | currency }}</div>
     </div>
 </div>
 
-<!-- Últimas Métricas -->
-{% if last_metrics %}
-<div class="card mb-4">
-    <div class="card-header">
-        📊 Métricas da Última Sprint
-    </div>
-    <div class="card-body">
-        <div class="grid-3">
-            <div class="metric-card">
-                <div class="label">PV (Planned Value)</div>
-                <div class="value">{{ last_metrics.PV | currency }}</div>
-            </div>
-            <div class="metric-card">
-                <div class="label">EV (Earned Value)</div>
-                <div class="value">{{ last_metrics.EV | currency }}</div>
-            </div>
-            <div class="metric-card">
-                <div class="label">AC (Actual Cost)</div>
-                <div class="value">{{ last_metrics.AC | currency }}</div>
-            </div>
-        </div>
+{% include "partials/plan/sprint_form_card.html" %}
+{% include "partials/plan/last_metrics_card.html" %}
+{% include "partials/plan/project_tracking_section.html" %}
+{% include "partials/plan/history_section.html" %}
+{% include "partials/plan/charts_section.html" %}
+{% endblock %}
 
-        <div class="grid-3 mt-3">
-            <div class="metric-card">
-                <div class="label">CV (Cost Variance)</div>
-                <div class="value {% if last_metrics.CV >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    {{ last_metrics.CV | currency }}
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="label">SV (Schedule Variance)</div>
-                <div class="value {% if last_metrics.SV >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    {{ last_metrics.SV | currency }}
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="label">Status</div>
-                <div class="value {% if 'OK' in last_metrics.status %}status-ok{% else %}status-warning{% endif %}">
-                    {{ last_metrics.status }}
-                </div>
-            </div>
-        </div>
+{% block scripts %}
+<script>
+    (() => {
+        const squadCost = {{ squad_cost|tojson }};
+        const weeksInput = document.querySelector('[name="sprint_weeks"]');
+        const actualCostInput = document.querySelector('[name="sprint_actual_cost"]');
+        const plannedValueInput = document.querySelector('[name="sprint_planned_value"]');
+        const suggestedField = document.querySelector('[data-suggested-sprint-cost]');
 
-        <div class="grid-2 mt-3">
-            <div class="metric-card">
-                <div class="label">CPI (Cost Performance Index)</div>
-                <div class="value {% if last_metrics.CPI >= 1 %}text-success{% else %}text-danger{% endif %}">
-                    {{ last_metrics.CPI | round(2) }}
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="label">SPI (Schedule Performance Index)</div>
-                <div class="value {% if last_metrics.SPI >= 1 %}text-success{% else %}text-danger{% endif %}">
-                    {{ last_metrics.SPI | round(2) }}
-                </div>
-            </div>
-        </div>
+        if (!weeksInput || !actualCostInput || !plannedValueInput || !suggestedField) {
+            return;
+        }
 
-        <div class="grid-2 mt-3">
-            <div class="metric-card">
-                <div class="label">% Concluída do Projeto</div>
-                <div class="value text-info">
-                    {% if last_metrics.completion_percentage is defined %}
-                        {{ last_metrics.completion_percentage }}%
-                    {% else %}
-                        0%
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+        const formatCurrency = (value) => {
+            return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
 
-<!-- Gráficos -->
-{% if history and history|length > 0 %}
-<div class="card mb-4">
-    <div class="card-header">
-        📈 Gráfico Cumulativo - PV, EV e AC
-    </div>
-    <div class="card-body text-center">
-        <img src="{{ url_for('routes.generate_cumulative_chart') }}" alt="Gráfico Cumulativo de PV, EV e AC" style="max-width: 100%; height: auto;">
-    </div>
-</div>
+        const calculate = () => {
+            const weeks = Math.max(parseFloat(weeksInput.value || '0') || 0, 0);
+            const suggested = weeks > 0 ? squadCost * (weeks / 4.2) : 0;
+            suggestedField.textContent = `R$ ${formatCurrency(suggested)}`;
+            actualCostInput.value = formatCurrency(suggested);
+            plannedValueInput.value = formatCurrency(suggested);
+        };
 
-<div class="card mb-4">
-    <div class="card-header">
-        📉 Gráfico de CPI
-    </div>
-    <div class="card-body text-center">
-        <img src="{{ url_for('routes.generate_cpi_chart') }}" alt="Gráfico de CPI" style="max-width: 100%; height: auto;">
-    </div>
-</div>
+        weeksInput.addEventListener('input', calculate);
+        calculate();
 
-<div class="card mb-4">
-    <div class="card-header">
-        📊 Gráfico de SPI
-    </div>
-    <div class="card-body text-center">
-        <img src="{{ url_for('routes.generate_spi_chart') }}" alt="Gráfico de SPI" style="max-width: 100%; height: auto;">
-    </div>
-</div>
-{% endif %}
+        document.querySelectorAll('.collapsible-card-toggle').forEach((button) => {
+            const targetSelector = button.getAttribute('data-bs-target');
+            if (!targetSelector) {
+                return;
+            }
 
-<!-- Tabela de Histórico -->
-{% if history %}
-<div class="card">
-    <div class="card-header">
-        📋 Histórico de Sprints
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Sprint</th>
-                        <th>PV (R$)</th>
-                        <th>EV (R$)</th>
-                        <th>AC (R$)</th>
-                        <th>CV (R$)</th>
-                        <th>SV (R$)</th>
-                        <th>CPI</th>
-                        <th>SPI</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in history %}
-                    <tr>
-                        <td><strong>#{{ record.sprint_no }}</strong></td>
-                        <td>{{ record.PV | currency }}</td>
-                        <td>{{ record.EV | currency }}</td>
-                        <td>{{ record.AC | currency }}</td>
-                        <td class="{% if record.CV >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ record.CV | currency }}
-                        </td>
-                        <td class="{% if record.SV >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ record.SV | currency }}
-                        </td>
-                        <td class="{% if record.CPI >= 1 %}text-success{% else %}text-danger{% endif %}">
-                            {{ record.CPI | round(2) }}
-                        </td>
-                        <td class="{% if record.SPI >= 1 %}text-success{% else %}text-danger{% endif %}">
-                            {{ record.SPI | round(2) }}
-                        </td>
-                        <td>
-                            <span class="badge {% if 'OK' in record.status %}bg-success{% else %}bg-warning{% endif %}">
-                                {{ record.status }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% else %}
-<div class="alert alert-info" role="alert">
-    <strong>ℹ️ Informação:</strong> Nenhuma sprint registrada ainda. Adicione a primeira sprint acima.
-</div>
-{% endif %}
+            const target = document.querySelector(targetSelector);
+            if (!target) {
+                return;
+            }
 
+            const syncLabel = () => {
+                button.textContent = target.classList.contains('show') ? 'Recolher' : 'Expandir';
+            };
+
+            target.addEventListener('shown.bs.collapse', syncLabel);
+            target.addEventListener('hidden.bs.collapse', syncLabel);
+            syncLabel();
+        });
+    })();
+</script>
 {% endblock %}

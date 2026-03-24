@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - EVM Web{% endblock %}
+{% block page_title %}Dashboard dos Projetos{% endblock %}
+
+{% block content %}
+<section class="dashboard-banner">
+    <div>
+        <div class="eyebrow">Visão geral</div>
+        <div class="banner-title">Todos os projetos em uma única visão.</div>
+        <p class="banner-copy">
+            Use esta página para comparar rapidamente o estado das squads. Quando quiser aprofundar, clique em uma squad para abrir o dashboard específico dela.
+        </p>
+        <div class="quick-actions mt-4">
+            <a class="btn btn-primary" href="{{ url_for('routes.select_squad') }}">Selecionar squad</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.upload_file') }}">Importar nova planilha</a>
+        </div>
+    </div>
+    <div class="summary-strip">
+        <div class="summary-pill">
+            <div class="label">Squads</div>
+            <div class="value">{{ summaries|length }}</div>
+        </div>
+        <div class="summary-pill">
+            <div class="label">Squad ativa</div>
+            <div class="value">{{ current_squad or 'Nenhuma' }}</div>
+        </div>
+        <div class="summary-pill">
+            <div class="label">Em foco</div>
+            <div class="value">{{ current_summary.name if current_summary else 'Sem seleção' }}</div>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header">Resumo por Squad</div>
+    <div class="card-body">
+        {% if summaries %}
+        <div class="dashboard-grid">
+            {% for summary in summaries %}
+                {% include "partials/dashboard/squad_card.html" %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">Nenhum projeto disponível no momento.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

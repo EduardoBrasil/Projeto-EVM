@@ -1,0 +1,45 @@
+<div class="card mb-4">
+    <div class="card-header collapsible-card-header">
+        <span>Configuracao de Releases</span>
+        <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-releases-body" aria-expanded="true" aria-controls="plan-releases-body">
+            Recolher
+        </button>
+    </div>
+    <div class="card-body collapse show" id="plan-releases-body">
+        {% if not releases %}
+        <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Quantidade de Releases</label>
+                <input type="number" class="form-control" name="num_releases" placeholder="Ex: 3" min="1" step="1" required>
+            </div>
+            <div class="col-md-6">
+                <button type="submit" name="create_releases" class="btn btn-primary w-100">Criar Releases</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-light border mb-3">
+            As releases foram configuradas e agora estao bloqueadas para manter a integridade do planejamento.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-border">
+                <thead>
+                    <tr>
+                        <th>Release</th>
+                        <th>Pontos</th>
+                        <th>Sprints</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, release in releases %}
+                    <tr>
+                        <td><strong>Release {{ i }}</strong></td>
+                        <td>{{ release.points }}</td>
+                        <td>{{ release.sprints }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>

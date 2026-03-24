@@ -1,0 +1,62 @@
+<div class="card mb-4 mt-4">
+    <div class="card-header collapsible-card-header">
+        <span>Registrar Sprint</span>
+        <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-sprint-form-body" aria-expanded="true" aria-controls="plan-sprint-form-body">
+            Recolher
+        </button>
+    </div>
+    <div class="card-body collapse show" id="plan-sprint-form-body">
+        <div class="alert alert-info mb-3">
+            <strong>Sprint vigente:</strong> {{ current_sprint }} de {{ total_sprints }}
+        </div>
+        <p class="text-muted mb-3">Total de pontos da release (incluindo pontos adicionados): <strong>{{ total_points }}</strong></p>
+
+        <div class="grid-3 mb-4">
+            <div class="metric-card">
+                <div class="label">Duracao sugerida</div>
+                <div class="value">{{ default_sprint_weeks }} semana(s)</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Equipe atual</div>
+                <div class="value">{{ current_component_count | round(2) }} componente(s)</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Custo sugerido</div>
+                <div class="value" data-suggested-sprint-cost>{{ sprint_cost | currency }}</div>
+            </div>
+        </div>
+
+        <form id="sprint-form" method="POST" action="{{ url_for('routes.add_sprint') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Pontos Planejados</label>
+                <input type="number" class="form-control" name="sprint_plan_points" placeholder="0" min="0" step="1" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Pontos Concluidos</label>
+                <input type="number" class="form-control" name="sprint_done_points" placeholder="0" min="0" step="1" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Pontos Adicionados</label>
+                <input type="number" class="form-control" name="sprint_added_points" placeholder="0" min="0" step="1" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Semanas</label>
+                <input type="number" class="form-control" name="sprint_weeks" value="{{ default_sprint_weeks }}" step="0.5" min="0.5" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Valor Planejado (PV)</label>
+                <input type="text" class="form-control" name="sprint_planned_value" value="{{ '{:,.2f}'.format(sprint_cost).replace(',', 'X').replace('.', ',').replace('X', '.') }}" placeholder="0,00" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Custo Real (AC)</label>
+                <input type="text" class="form-control" name="sprint_actual_cost" value="{{ '{:,.2f}'.format(sprint_cost).replace(',', 'X').replace('.', ',').replace('X', '.') }}" placeholder="0,00" required>
+            </div>
+        </form>
+        <p class="text-muted small mt-3 mb-0">A composicao da squad e ajustada na tela de configuracao. Aqui voce define apenas a duracao da sprint e os dados de entrega.</p>
+        <div class="row mt-3">
+            <div class="col-12">
+                <button type="submit" form="sprint-form" class="btn btn-success w-100">Adicionar Sprint</button>
+            </div>
+        </div>
+    </div>
+</div>

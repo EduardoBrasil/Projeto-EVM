@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% if auth_mode == "register" %}
+{% set page_name = "Criar Conta" %}
+{% set page_kicker = "Comece com uma base organizada" %}
+{% set page_title_copy = "Centralize squads, planejamento e historico em um espaco seu." %}
+{% set submit_label = "Criar minha conta" %}
+{% set helper_copy = "Ja tem conta? Entre para continuar seu planejamento." %}
+{% set helper_cta = "Ir para login" %}
+{% set helper_href = url_for('routes.login') %}
+{% else %}
+{% set page_name = "Entrar" %}
+{% set page_kicker = "Bem-vindo de volta" %}
+{% set page_title_copy = "Acesse seu ambiente e retome a analise dos projetos sem perder contexto." %}
+{% set submit_label = "Entrar no painel" %}
+{% set helper_copy = "Primeiro acesso? Crie uma conta para manter seus dados separados." %}
+{% set helper_cta = "Criar conta" %}
+{% set helper_href = url_for('routes.register') %}
+{% endif %}
+
+{% block title %}{{ page_name }} - EVM Web{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+
+{% block body %}
+<main class="auth-shell">
+    <section class="auth-showcase">
+        <div class="auth-brand">
+            <div class="auth-brand-mark">EVM</div>
+            <div>
+                <div class="auth-brand-title">Project Pulse</div>
+                <div class="auth-brand-subtitle">Planejamento com visao executiva</div>
+            </div>
+        </div>
+
+        <div class="auth-copy">
+            <div class="eyebrow auth-eyebrow">{{ page_kicker }}</div>
+            <h1 class="auth-headline">{{ page_title_copy }}</h1>
+            <p class="auth-description">
+                Um espaco para consolidar estrutura de squads, releases, custos e tendencias de entrega com um fluxo simples e leitura clara para decisao.
+            </p>
+        </div>
+
+        <div class="auth-feature-list">
+            <div class="auth-feature-card">
+                <div class="auth-feature-value">Squads</div>
+                <div class="auth-feature-label">Organizacao por time e contexto</div>
+            </div>
+            <div class="auth-feature-card">
+                <div class="auth-feature-value">EVM</div>
+                <div class="auth-feature-label">Indicadores de custo, prazo e tendencia</div>
+            </div>
+            <div class="auth-feature-card">
+                <div class="auth-feature-value">Local</div>
+                <div class="auth-feature-label">Persistencia simples para evolucao continua</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="auth-panel-wrap">
+        <div class="auth-panel">
+            <div class="auth-panel-header">
+                <div class="eyebrow">Acesso</div>
+                <h2 class="auth-panel-title">{{ page_name }}</h2>
+                <p class="auth-panel-copy">
+                    {% if auth_mode == "register" %}
+                    Crie seu acesso para manter o acompanhamento separado por usuario.
+                    {% else %}
+                    Entre com suas credenciais para abrir seu ambiente de trabalho.
+                    {% endif %}
+                </p>
+            </div>
+
+            {% include "partials/layout/flash_messages.html" %}
+
+            <form method="POST" class="auth-form">
+                <div>
+                    <label class="form-label">Usuario</label>
+                    <input type="text" class="form-control form-control-lg auth-input" name="username" value="{{ username or '' }}" placeholder="Seu usuario" required autofocus>
+                </div>
+
+                <div>
+                    <label class="form-label">Senha</label>
+                    <input type="password" class="form-control form-control-lg auth-input" name="password" placeholder="Digite sua senha" required>
+                </div>
+
+                {% if auth_mode == "register" %}
+                <div>
+                    <label class="form-label">Confirmar senha</label>
+                    <input type="password" class="form-control form-control-lg auth-input" name="confirm_password" placeholder="Repita sua senha" required>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary auth-submit">{{ submit_label }}</button>
+            </form>
+
+            <div class="auth-divider"><span>ou</span></div>
+
+            <div class="auth-secondary">
+                <p class="auth-secondary-copy">{{ helper_copy }}</p>
+                <a class="btn btn-outline-secondary auth-secondary-btn" href="{{ helper_href }}">{{ helper_cta }}</a>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
