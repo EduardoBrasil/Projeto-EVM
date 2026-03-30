@@ -7,6 +7,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from formula_helpers import (
+    calculate_file_member_monthly_cost,
+    calculate_manual_member_monthly_cost,
+    calculate_sprint_cost_from_monthly_cost,
+)
 from models import EVMCalculator
 
 
@@ -178,17 +183,60 @@ class PlanningService:
                 manual_count += 1.0
         return file_count + manual_count
 
+    def calculate_additional_costs(self, workspace):
+        infrastructure_cost = self.parse_brazilian_float(workspace.get("infrastructure_cost", 0))
+        health_plan_cost = self.parse_brazilian_float(workspace.get("health_plan_cost", 0))
+        meal_allowance_cost = self.parse_brazilian_float(workspace.get("meal_allowance_cost", 0))
+        total = round(infrastructure_cost + health_plan_cost + meal_allowance_cost, 2)
+        return {
+            "infrastructure_cost": round(infrastructure_cost, 2),
+            "health_plan_cost": round(health_plan_cost, 2),
+            "meal_allowance_cost": round(meal_allowance_cost, 2),
+            "total": total,
+        }
+
     def calculate_sprint_cost(
         self,
         squad_cost,
         sprint_weeks=2.0,
         component_count=0,
     ):
-        base_component_count = max(float(component_count or 0), 0)
-        if squad_cost <= 0 or base_component_count <= 0 or sprint_weeks <= 0:
-            return 0.0
+        return calculate_sprint_cost_from_monthly_cost(
+            squad_cost,
+            sprint_weeks=sprint_weeks,
+        )
 
-        return squad_cost * (float(sprint_weeks) / 4.2)
+    def calculate_workspace_monthly_cost(self, workspace, squad_info=None):
+        file_members = workspace.get("squad_members_from_file")
+        if file_members is None:
+            file_members = (squad_info or {}).get("members", [])
+
+        total_file_cost = 0.0
+        for member in file_members or []:
+            total_file_cost += calculate_file_member_monthly_cost(
+                member.get("qtde", 1),
+                member.get("preco_mhh", 0),
+            )
+
+        total_manual_cost = 0.0
+        for member in workspace.get("members", []):
+            total_manual_cost += calculate_manual_member_monthly_cost(
+                member.get("salary", 0),
+                member.get("hourly", 0),
+                member.get("quantity", 1),
+            )
+
+        additional_costs = self.calculate_additional_costs(workspace)
+        calculated_cost = round(total_file_cost + total_manual_cost + additional_costs["total"], 2)
+        if calculated_cost > 0:
+            return calculated_cost
+
+        fallback_workspace_cost = self.parse_brazilian_float(workspace.get("squad_cost", 0))
+        if fallback_workspace_cost > 0:
+            return round(fallback_workspace_cost, 2)
+
+        fallback_squad_cost = self.parse_brazilian_float((squad_info or {}).get("total_cost", 0))
+        return round(fallback_squad_cost, 2)
 
     def build_sprint_record(
         self,
@@ -391,7 +439,8 @@ class PlanningService:
 
     def calculate_planning_totals(self, workspace):
         releases = self.normalize_releases(workspace.get("releases", []))
-        squad_cost = workspace.get("squad_cost", 0)
+        additional_costs = self.calculate_additional_costs(workspace)
+        squad_cost = self.calculate_workspace_monthly_cost(workspace)
         default_sprint_weeks = float(workspace.get("default_sprint_weeks", 2) or 2)
         current_component_count = self.calculate_component_count(workspace)
         total_release_sprints = sum(release.get("sprints", 0) for release in releases)
@@ -408,6 +457,8 @@ class PlanningService:
         value_per_point = bac / total_release_points if total_release_points > 0 else 0
         return {
             "releases": releases,
+            "additional_costs": additional_costs,
+            "squad_cost": squad_cost,
             "total_release_points": total_release_points,
             "total_release_sprints": total_release_sprints,
             "sprint_cost": sprint_cost,
@@ -423,12 +474,12 @@ class PlanningService:
             workspace.get("history", []),
             totals["value_per_point"],
             totals["total_release_points"],
-            workspace.get("squad_cost", 0),
+            totals["squad_cost"],
             totals["current_component_count"],
         )
         return PlanningContext(
             releases=totals["releases"],
-            squad_cost=workspace.get("squad_cost", 0),
+            squad_cost=totals["squad_cost"],
             total_points=totals["total_release_points"],
             total_sprints=totals["total_release_sprints"],
             sprint_cost=totals["sprint_cost"],
@@ -442,12 +493,8 @@ class PlanningService:
     def calculate_workspace_summary(self, squad_name, workspace, squad_info):
         file_members = workspace.get("squad_members_from_file", squad_info.get("members", []))
         members = workspace.get("members", [])
-        manual_cost = sum(
-            (member.get("salary", 0) + 160 * member.get("hourly", 0)) * member.get("quantity", 1)
-            for member in members
-        )
-        base_total_cost = squad_info.get("total_cost", 0)
-        squad_cost = workspace.get("squad_cost", base_total_cost + manual_cost)
+        additional_costs = self.calculate_additional_costs(workspace)
+        squad_cost = self.calculate_workspace_monthly_cost(workspace, squad_info)
         context = self.get_planning_context({**workspace, "squad_cost": squad_cost})
         last_metrics = context.history[-1] if context.history else None
         projection = self.calculate_release_projection(
@@ -461,6 +508,10 @@ class PlanningService:
             "name": squad_name,
             "members_from_file": sum(float(member.get("qtde", 1) or 1) for member in file_members) if file_members else 0,
             "manual_members": sum(float(member.get("quantity", 1) or 1) for member in members) if members else 0,
+            "infrastructure_cost": additional_costs["infrastructure_cost"],
+            "health_plan_cost": additional_costs["health_plan_cost"],
+            "meal_allowance_cost": additional_costs["meal_allowance_cost"],
+            "additional_costs_total": additional_costs["total"],
             "squad_cost": squad_cost,
             "sprint_cost": context.sprint_cost,
             "releases_count": len(context.releases),

@@ -52,7 +52,7 @@
         <div class="card-body collapse show" id="plan-params-body">
             <div class="grid-3">
                 <div class="info-box">
-                    <h6>Custo Squad Mensal</h6>
+                    <h6>Custo da Squad</h6>
                     <div class="amount">{{ squad_cost | currency }}</div>
                 </div>
                 <div class="info-box">
@@ -94,6 +94,7 @@
 <script>
     (() => {
         const squadCost = {{ squad_cost|tojson }};
+        const weeksPerMonth = 4;
         const weeksInput = document.querySelector('[name="sprint_weeks"]');
         const actualCostInput = document.querySelector('[name="sprint_actual_cost"]');
         const plannedValueInput = document.querySelector('[name="sprint_planned_value"]');
@@ -109,7 +110,7 @@
 
         const calculate = () => {
             const weeks = Math.max(parseFloat(weeksInput.value || '0') || 0, 0);
-            const suggested = weeks > 0 ? squadCost * (weeks / 4.2) : 0;
+            const suggested = weeks > 0 ? squadCost * (weeks / weeksPerMonth) : 0;
             suggestedField.textContent = `R$ ${formatCurrency(suggested)}`;
             actualCostInput.value = formatCurrency(suggested);
             plannedValueInput.value = formatCurrency(suggested);

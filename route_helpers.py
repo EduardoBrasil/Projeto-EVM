@@ -108,6 +108,10 @@ def ensure_current_squad_workspace():
     workspace.setdefault("history", [])
     workspace.setdefault("squad_members_from_file", copy.deepcopy(base_members))
     workspace.setdefault("squad_total_cost", base_total_cost)
+    workspace.setdefault("infrastructure_cost", 0)
+    workspace.setdefault("health_plan_cost", 0)
+    workspace.setdefault("meal_allowance_cost", 0)
+    workspace.setdefault("additional_costs_total", 0)
     return workspace
 
 

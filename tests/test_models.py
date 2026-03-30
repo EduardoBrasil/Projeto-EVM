@@ -44,7 +44,7 @@ def test_squad_loader_reads_csv_and_computes_total_cost(tmp_path):
 
     assert "Alpha" in squads
     assert squads["Alpha"]["members"][0]["qtde"] == 2
-    assert squads["Alpha"]["total_cost"] == pytest.approx(2 * 20 * 8 * 5 * 4.2)
+    assert squads["Alpha"]["total_cost"] == pytest.approx(2 * 20 * 160)
 
 
 def test_squad_loader_rejects_missing_columns(tmp_path):

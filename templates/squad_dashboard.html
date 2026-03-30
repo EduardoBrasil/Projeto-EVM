@@ -23,7 +23,7 @@
     </div>
     <div class="summary-strip">
         <div class="summary-pill">
-            <div class="label">Custo mensal</div>
+            <div class="label">Custo da Squad</div>
             <div class="value">{{ current_summary.squad_cost | currency }}</div>
         </div>
         <div class="summary-pill">
@@ -53,6 +53,21 @@
                 <div class="metric-card">
                     <div class="label">Sprints registradas</div>
                     <div class="value">{{ current_summary.history_count }}</div>
+                </div>
+            </div>
+
+            <div class="grid-3 mt-3">
+                <div class="metric-card">
+                    <div class="label">Infraestrutura</div>
+                    <div class="value">{{ current_summary.infrastructure_cost | currency }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Plano de saude</div>
+                    <div class="value">{{ current_summary.health_plan_cost | currency }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Vale alimentacao e refeicao</div>
+                    <div class="value">{{ current_summary.meal_allowance_cost | currency }}</div>
                 </div>
             </div>
 
