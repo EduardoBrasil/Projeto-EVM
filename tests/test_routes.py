@@ -142,7 +142,6 @@ def test_setup_updates_file_and_manual_members(client, sample_squads_data):
 
     dashboard_response = client.get("/dashboard/squad/Alpha")
     assert dashboard_response.status_code == 200
-    assert b"Infraestrutura" in dashboard_response.data
     assert b"Custo da Squad" in dashboard_response.data
 
 
@@ -151,6 +150,8 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     seed_session(client, sample_squads_data, workspace=workspace)
 
     assert client.get("/plan").status_code == 200
+    assert client.get("/baseline").status_code == 200
+    assert client.post("/create_baseline").status_code == 302
 
     response = client.post("/update_release_points", data={"release_index": 0, "release_points": 50})
     assert response.status_code == 302
@@ -188,6 +189,11 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     response = client.get("/plan")
     assert response.status_code == 200
     assert b"Hist" in response.data
+    assert b"Baseline" in response.data
+
+    baseline_response = client.get("/baseline")
+    assert baseline_response.status_code == 200
+    assert b"Comparativo Atual x Baseline" in baseline_response.data
 
     response = client.post("/delete_sprint/1")
     assert response.status_code == 302

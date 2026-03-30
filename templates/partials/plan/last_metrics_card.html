@@ -1,12 +1,15 @@
 {% if last_metrics %}
 <div class="card mb-4">
     <div class="card-header collapsible-card-header">
-        <span>Metricas da Ultima Sprint</span>
+        <span>Ritmo da Ultima Sprint</span>
         <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-last-metrics-body" aria-expanded="true" aria-controls="plan-last-metrics-body">
             Recolher
         </button>
     </div>
     <div class="card-body collapse show" id="plan-last-metrics-body">
+        <div class="small text-muted mb-3">
+            Este quadro mostra o desempenho da sprint mais recente. O atraso ou adiantamento final da release deve ser lido no acompanhamento consolidado do projeto.
+        </div>
         <div class="grid-3">
             <div class="metric-card">
                 <div class="label">PV (Planned Value)</div>
@@ -50,13 +53,13 @@
 
         <div class="grid-2 mt-3">
             <div class="metric-card">
-                <div class="label">CPI (Cost Performance Index)</div>
+                <div class="label">CPI da ultima sprint</div>
                 <div class="value {% if last_metrics.CPI >= 1 %}text-success{% else %}text-danger{% endif %}">
                     {{ last_metrics.CPI | round(2) }}
                 </div>
             </div>
             <div class="metric-card">
-                <div class="label">SPI (Schedule Performance Index)</div>
+                <div class="label">SPI da ultima sprint</div>
                 <div class="value {% if last_metrics.SPI >= 1 %}text-success{% else %}text-danger{% endif %}">
                     {{ last_metrics.SPI | round(2) }}
                 </div>

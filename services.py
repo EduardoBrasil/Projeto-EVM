@@ -4,8 +4,10 @@ services.py - Servicos de planejamento e metricas do projeto.
 
 from __future__ import annotations
 
+import copy
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 
 from formula_helpers import (
     calculate_file_member_monthly_cost,
@@ -205,6 +207,60 @@ class PlanningService:
             squad_cost,
             sprint_weeks=sprint_weeks,
         )
+
+    def build_baseline_snapshot(self, workspace):
+        totals = self.calculate_planning_totals(workspace)
+        return {
+            "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "releases": copy.deepcopy(totals["releases"]),
+            "additional_costs": copy.deepcopy(totals["additional_costs"]),
+            "squad_cost": round(totals["squad_cost"], 2),
+            "sprint_cost": round(totals["sprint_cost"], 2),
+            "bac": round(totals["bac"], 2),
+            "value_per_point": round(totals["value_per_point"], 2),
+            "total_points": round(totals["total_release_points"], 2),
+            "total_sprints": totals["total_release_sprints"],
+            "default_sprint_weeks": round(totals["default_sprint_weeks"], 2),
+            "component_count": round(totals["current_component_count"], 2),
+        }
+
+    def calculate_baseline_comparison(self, workspace, baseline):
+        if not baseline:
+            return None
+
+        totals = self.calculate_planning_totals(workspace)
+        current_total_points = round(totals["total_release_points"], 2)
+        current_total_sprints = totals["total_release_sprints"]
+        current_squad_cost = round(totals["squad_cost"], 2)
+        current_bac = round(totals["bac"], 2)
+
+        baseline_total_points = round(float(baseline.get("total_points", 0) or 0), 2)
+        baseline_total_sprints = int(baseline.get("total_sprints", 0) or 0)
+        baseline_squad_cost = round(float(baseline.get("squad_cost", 0) or 0), 2)
+        baseline_bac = round(float(baseline.get("bac", 0) or 0), 2)
+
+        return {
+            "scope_delta": round(current_total_points - baseline_total_points, 2),
+            "sprints_delta": current_total_sprints - baseline_total_sprints,
+            "squad_cost_delta": round(current_squad_cost - baseline_squad_cost, 2),
+            "bac_delta": round(current_bac - baseline_bac, 2),
+            "current_total_points": current_total_points,
+            "current_total_sprints": current_total_sprints,
+            "current_squad_cost": current_squad_cost,
+            "current_bac": current_bac,
+            "baseline_total_points": baseline_total_points,
+            "baseline_total_sprints": baseline_total_sprints,
+            "baseline_squad_cost": baseline_squad_cost,
+            "baseline_bac": baseline_bac,
+            "has_changes": any(
+                (
+                    round(current_total_points - baseline_total_points, 2) != 0,
+                    current_total_sprints - baseline_total_sprints != 0,
+                    round(current_squad_cost - baseline_squad_cost, 2) != 0,
+                    round(current_bac - baseline_bac, 2) != 0,
+                )
+            ),
+        }
 
     def calculate_workspace_monthly_cost(self, workspace, squad_info=None):
         file_members = workspace.get("squad_members_from_file")
@@ -504,6 +560,11 @@ class PlanningService:
             context.total_points,
             context.sprint_cost,
         )
+        baseline = copy.deepcopy(workspace.get("baseline"))
+        baseline_comparison = self.calculate_baseline_comparison(
+            {**workspace, "squad_cost": squad_cost},
+            baseline,
+        )
         return {
             "name": squad_name,
             "members_from_file": sum(float(member.get("qtde", 1) or 1) for member in file_members) if file_members else 0,
@@ -527,4 +588,6 @@ class PlanningService:
             "history": context.history,
             "last_metrics": last_metrics,
             "projection": projection,
+            "baseline": baseline,
+            "baseline_comparison": baseline_comparison,
         }

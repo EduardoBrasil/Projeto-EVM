@@ -166,6 +166,27 @@ def test_workspace_cost_includes_additional_project_costs():
     assert summary["meal_allowance_cost"] == 200
 
 
+def test_baseline_snapshot_and_comparison_reflect_current_plan():
+    service = PlanningService()
+    workspace = {
+        "releases": [{"points": 40, "sprints": 4}],
+        "history": [],
+        "members": [],
+        "squad_members_from_file": [{"cargo": "Dev", "qtde": 1, "preco_mhh": 100}],
+        "infrastructure_cost": 500,
+    }
+
+    baseline = service.build_baseline_snapshot(workspace)
+    workspace["releases"] = [{"points": 50, "sprints": 5}]
+    comparison = service.calculate_baseline_comparison(workspace, baseline)
+
+    assert baseline["total_points"] == 40
+    assert baseline["total_sprints"] == 4
+    assert comparison["scope_delta"] == 10
+    assert comparison["sprints_delta"] == 1
+    assert comparison["has_changes"] is True
+
+
 def test_executive_status_considers_project_projection_delay():
     service = PlanningService()
     workspace = {

@@ -87,6 +87,10 @@ Para rodar a suite com cobertura:
 .venv\Scripts\python.exe -m pytest --cov --cov-report=term-missing
 ```
 
+## Documentacao
+
+- Guia de funcionalidades e uso: [GUIA_FUNCIONALIDADES.md](GUIA_FUNCIONALIDADES.md)
+
 ## Observacoes
 
 - Cada usuario possui suas squads e workspaces persistidos localmente em SQLite.

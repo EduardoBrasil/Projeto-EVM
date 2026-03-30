@@ -1,12 +1,15 @@
 {% if history and history|length > 0 %}
 <div class="card mb-4">
     <div class="card-header collapsible-card-header">
-        <span>Acompanhamento do Projeto</span>
+        <span>Projecao Consolidada da Release</span>
         <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-project-tracking-body" aria-expanded="true" aria-controls="plan-project-tracking-body">
             Recolher
         </button>
     </div>
     <div class="card-body collapse show" id="plan-project-tracking-body">
+        <div class="small text-muted mb-3">
+            Esta projecao usa o escopo total atual da release e a velocidade acumulada do projeto. Por isso, uma sprint recente com SPI acima de 1 nao garante que a release inteira esteja adiantada.
+        </div>
         <div class="grid-2">
             <div class="metric-card">
                 <div class="label">Projecao de Custo Final</div>

@@ -7,6 +7,8 @@ from __future__ import annotations
 from flask import flash, redirect, render_template, request, session, url_for
 
 from route_helpers import (
+    build_baseline_snapshot,
+    calculate_baseline_comparison,
     build_sprint_record,
     calculate_release_projection,
     calculate_total_release_points,
@@ -56,6 +58,8 @@ def register_planning_routes(routes_bp):
         value_per_point = planning_totals["value_per_point"]
         default_sprint_weeks = planning_totals["default_sprint_weeks"]
         current_component_count = planning_totals["current_component_count"]
+        baseline = workspace.get("baseline")
+        baseline_comparison = calculate_baseline_comparison(workspace, baseline)
 
         history = recalculate_history(
             workspace.get("history", []),
@@ -97,6 +101,47 @@ def register_planning_routes(routes_bp):
             projection=projection,
             default_sprint_weeks=default_sprint_weeks,
             current_component_count=current_component_count,
+            baseline=baseline,
+            baseline_comparison=baseline_comparison,
+        )
+
+    @routes_bp.route("/create_baseline", methods=["POST"])
+    def create_baseline():
+        workspace = ensure_current_squad_workspace()
+        if workspace is None:
+            return redirect(url_for("routes.select_squad"))
+
+        planning_totals = get_planning_totals(workspace)
+        if not planning_totals["releases"]:
+            flash("Configure as releases antes de gerar a baseline.", "warning")
+            return redirect(url_for("routes.plan"))
+
+        workspace["baseline"] = build_baseline_snapshot(workspace)
+        save_current_squad_workspace(workspace)
+        flash("Baseline da squad atualizada com sucesso.", "success")
+        return redirect(url_for("routes.plan"))
+
+    @routes_bp.route("/baseline", methods=["GET"])
+    def baseline():
+        workspace = ensure_current_squad_workspace()
+        if workspace is None:
+            return redirect(url_for("routes.select_squad"))
+
+        planning_totals = get_planning_totals(workspace)
+        workspace["squad_cost"] = planning_totals["squad_cost"]
+        save_current_squad_workspace(workspace)
+
+        return render_template(
+            "baseline.html",
+            current_squad=session.get("current_squad_name", "Squad"),
+            squad_cost=planning_totals["squad_cost"],
+            sprint_cost=planning_totals["sprint_cost"],
+            bac=planning_totals["bac"],
+            total_points=planning_totals["total_release_points"],
+            total_sprints=planning_totals["total_release_sprints"],
+            current_component_count=planning_totals["current_component_count"],
+            baseline=workspace.get("baseline"),
+            baseline_comparison=calculate_baseline_comparison(workspace, workspace.get("baseline")),
         )
 
     @routes_bp.route("/update_sprint_settings", methods=["POST"])

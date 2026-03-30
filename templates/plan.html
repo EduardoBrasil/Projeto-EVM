@@ -13,7 +13,13 @@
 
 <div class="mb-3 quick-actions">
     <a href="{{ url_for('routes.setup') }}" class="btn btn-outline-primary btn-sm">Voltar a configuracao</a>
+    <a href="{{ url_for('routes.baseline') }}" class="btn btn-outline-secondary btn-sm">Abrir baseline</a>
     <a href="{{ url_for('routes.reset') }}" class="btn btn-outline-danger btn-sm">Novo upload</a>
+    <form method="POST" action="{{ url_for('routes.create_baseline') }}" class="inline-form">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            {% if baseline %}Atualizar baseline{% else %}Gerar baseline{% endif %}
+        </button>
+    </form>
 </div>
 
 {% include "partials/plan/releases_card.html" %}
@@ -42,9 +48,9 @@
         </div>
     </div>
 
-    <div class="card span-8">
+    <div class="card span-4">
         <div class="card-header collapsible-card-header">
-            <span>Parametros Atuais</span>
+            <span>Contexto da Squad</span>
             <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-params-body" aria-expanded="true" aria-controls="plan-params-body">
                 Recolher
             </button>
@@ -66,22 +72,48 @@
             </div>
         </div>
     </div>
-</section>
 
-<div class="grid-3">
-    <div class="info-box">
-        <h6>Duracao Padrao</h6>
-        <div class="amount">{{ default_sprint_weeks }} semana(s)</div>
+    <div class="card span-4">
+        <div class="card-header collapsible-card-header">
+            <span>Contexto do Projeto</span>
+            <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-project-context-body" aria-expanded="true" aria-controls="plan-project-context-body">
+                Recolher
+            </button>
+        </div>
+        <div class="card-body collapse show" id="plan-project-context-body">
+            <div class="grid-3">
+                <div class="info-box">
+                    <h6>Duracao Padrao</h6>
+                    <div class="amount">{{ default_sprint_weeks }} semana(s)</div>
+                </div>
+                <div class="info-box">
+                    <h6>Pontos da Release</h6>
+                    <div class="amount">{{ total_points }}</div>
+                </div>
+                <div class="info-box">
+                    <h6>Sprints Planejadas</h6>
+                    <div class="amount">{{ total_sprints }}</div>
+                </div>
+                <div class="info-box">
+                    <h6>BAC (Budget at Completion)</h6>
+                    <div class="amount">{{ bac | currency }}</div>
+                </div>
+                <div class="info-box">
+                    <h6>Baseline</h6>
+                    <div class="amount">
+                        {% if baseline %}Ativa{% else %}Nao gerada{% endif %}
+                    </div>
+                </div>
+                <div class="info-box">
+                    <h6>Variacao de Escopo</h6>
+                    <div class="amount {% if baseline_comparison and baseline_comparison.scope_delta != 0 %}text-danger{% else %}text-success{% endif %}">
+                        {% if baseline_comparison %}{{ baseline_comparison.scope_delta }}{% else %}-{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="info-box">
-        <h6>BAC (Budget at Completion)</h6>
-        <div class="amount">{{ bac | currency }}</div>
-    </div>
-    <div class="info-box">
-        <h6>Valor por Ponto</h6>
-        <div class="amount">{{ value_per_point | currency }}</div>
-    </div>
-</div>
+</section>
 
 {% include "partials/plan/sprint_form_card.html" %}
 {% include "partials/plan/last_metrics_card.html" %}
