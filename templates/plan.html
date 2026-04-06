@@ -14,10 +14,9 @@
 <div class="mb-3 quick-actions">
     <a href="{{ url_for('routes.setup') }}" class="btn btn-outline-primary btn-sm">Voltar a configuracao</a>
     <a href="{{ url_for('routes.baseline') }}" class="btn btn-outline-secondary btn-sm">Abrir baseline</a>
-    <form method="POST" action="{{ url_for('routes.reset') }}" class="inline-form">
-        {% include "partials/layout/csrf_input.html" %}
-        <button type="submit" class="btn btn-outline-danger btn-sm">Novo upload</button>
-    </form>
+    <button type="button" class="btn btn-outline-danger btn-sm" disabled title="Desabilitado para preservar os dados ja cadastrados.">
+        Novo upload desabilitado
+    </button>
     <form method="POST" action="{{ url_for('routes.create_baseline') }}" class="inline-form">
         {% include "partials/layout/csrf_input.html" %}
         <button type="submit" class="btn btn-outline-secondary btn-sm">
@@ -30,13 +29,8 @@
 
 <section class="dashboard-grid mb-4">
     <div class="card span-4">
-        <div class="card-header collapsible-card-header">
-            <span>Configuracao Base da Sprint</span>
-            <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-settings-body" aria-expanded="true" aria-controls="plan-settings-body">
-                Recolher
-            </button>
-        </div>
-        <div class="card-body collapse show" id="plan-settings-body">
+        <div class="card-header">Configuracao Base da Sprint</div>
+        <div class="card-body">
             <form method="POST" action="{{ url_for('routes.update_sprint_settings') }}" class="row g-3 align-items-end">
                 {% include "partials/layout/csrf_input.html" %}
                 <div class="col-md-7">
@@ -54,13 +48,8 @@
     </div>
 
     <div class="card span-4">
-        <div class="card-header collapsible-card-header">
-            <span>Contexto da Squad</span>
-            <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-params-body" aria-expanded="true" aria-controls="plan-params-body">
-                Recolher
-            </button>
-        </div>
-        <div class="card-body collapse show" id="plan-params-body">
+        <div class="card-header">Contexto da Squad</div>
+        <div class="card-body">
             <div class="grid-3">
                 <div class="info-box">
                     <h6>Custo da Squad</h6>
@@ -79,13 +68,8 @@
     </div>
 
     <div class="card span-4">
-        <div class="card-header collapsible-card-header">
-            <span>Contexto do Projeto</span>
-            <button class="btn btn-sm btn-outline-secondary collapsible-card-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#plan-project-context-body" aria-expanded="true" aria-controls="plan-project-context-body">
-                Recolher
-            </button>
-        </div>
-        <div class="card-body collapse show" id="plan-project-context-body">
+        <div class="card-header">Contexto do Projeto</div>
+        <div class="card-body">
             <div class="grid-3">
                 <div class="info-box">
                     <h6>Duracao Padrao</h6>
@@ -130,6 +114,62 @@
 {% block scripts %}
 <script>
     (() => {
+        const releaseCountInput = document.querySelector('[data-release-count-input]');
+        const releaseRowsContainer = document.querySelector('[data-release-config-rows]');
+
+        if (releaseCountInput && releaseRowsContainer) {
+            const buildReleaseRow = (index, values = {}) => {
+                const row = document.createElement('div');
+                row.className = 'row g-3 align-items-end';
+                row.setAttribute('data-release-row', '');
+
+                const labelColumn = document.createElement('div');
+                labelColumn.className = 'col-md-4';
+                labelColumn.innerHTML = `
+                    <label class="form-label">Release ${index + 1}</label>
+                    <input type="text" class="form-control" value="Release ${index + 1}" readonly>
+                `;
+
+                const pointsColumn = document.createElement('div');
+                pointsColumn.className = 'col-md-4';
+                pointsColumn.innerHTML = `
+                    <label class="form-label">Pontos</label>
+                    <input type="number" class="form-control" name="release_points" min="0" step="0.5" required>
+                `;
+                pointsColumn.querySelector('input').value = values.points || '50';
+
+                const sprintsColumn = document.createElement('div');
+                sprintsColumn.className = 'col-md-4';
+                sprintsColumn.innerHTML = `
+                    <label class="form-label">Sprints</label>
+                    <input type="number" class="form-control" name="release_sprints" min="1" step="1" required>
+                `;
+                sprintsColumn.querySelector('input').value = values.sprints || '5';
+
+                row.appendChild(labelColumn);
+                row.appendChild(pointsColumn);
+                row.appendChild(sprintsColumn);
+                return row;
+            };
+
+            const syncReleaseRows = () => {
+                const releaseCount = Math.max(parseInt(releaseCountInput.value || '1', 10) || 1, 1);
+                const currentValues = Array.from(releaseRowsContainer.querySelectorAll('[data-release-row]')).map((row) => ({
+                    points: row.querySelector('[name="release_points"]')?.value || '50',
+                    sprints: row.querySelector('[name="release_sprints"]')?.value || '5',
+                }));
+
+                releaseRowsContainer.innerHTML = '';
+                for (let index = 0; index < releaseCount; index += 1) {
+                    releaseRowsContainer.appendChild(buildReleaseRow(index, currentValues[index]));
+                }
+            };
+
+            releaseCountInput.addEventListener('input', syncReleaseRows);
+            releaseCountInput.addEventListener('change', syncReleaseRows);
+            syncReleaseRows();
+        }
+
         const squadCost = {{ squad_cost|tojson }};
         const weeksPerMonth = 4;
         const weeksInput = document.querySelector('[name="sprint_weeks"]');
@@ -137,24 +177,22 @@
         const plannedValueInput = document.querySelector('[name="sprint_planned_value"]');
         const suggestedField = document.querySelector('[data-suggested-sprint-cost]');
 
-        if (!weeksInput || !actualCostInput || !plannedValueInput || !suggestedField) {
-            return;
+        if (weeksInput && actualCostInput && plannedValueInput && suggestedField) {
+            const formatCurrency = (value) => {
+                return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            };
+
+            const calculate = () => {
+                const weeks = Math.max(parseFloat(weeksInput.value || '0') || 0, 0);
+                const suggested = weeks > 0 ? squadCost * (weeks / weeksPerMonth) : 0;
+                suggestedField.textContent = `R$ ${formatCurrency(suggested)}`;
+                actualCostInput.value = formatCurrency(suggested);
+                plannedValueInput.value = formatCurrency(suggested);
+            };
+
+            weeksInput.addEventListener('input', calculate);
+            calculate();
         }
-
-        const formatCurrency = (value) => {
-            return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        };
-
-        const calculate = () => {
-            const weeks = Math.max(parseFloat(weeksInput.value || '0') || 0, 0);
-            const suggested = weeks > 0 ? squadCost * (weeks / weeksPerMonth) : 0;
-            suggestedField.textContent = `R$ ${formatCurrency(suggested)}`;
-            actualCostInput.value = formatCurrency(suggested);
-            plannedValueInput.value = formatCurrency(suggested);
-        };
-
-        weeksInput.addEventListener('input', calculate);
-        calculate();
 
         document.querySelectorAll('.collapsible-card-toggle').forEach((button) => {
             const targetSelector = button.getAttribute('data-bs-target');

@@ -19,7 +19,7 @@ from route_helpers import (
     get_squads_data,
     save_current_squad_workspace,
 )
-from storage import clear_all_data, replace_all_squads, upsert_squad
+from storage import upsert_squad
 from storage import delete_squad as delete_squad_record
 
 
@@ -75,7 +75,17 @@ def _recalculate_workspace_costs(workspace):
 def register_squad_routes(routes_bp, upload_folder):
     @routes_bp.route("/upload", methods=["GET", "POST"])
     def upload_file():
+        existing_squads = get_squads_data()
+        upload_locked = bool(existing_squads)
+
         if request.method == "POST":
+            if upload_locked:
+                flash(
+                    "A importacao de planilha fica disponivel apenas na carga inicial para preservar os dados ja cadastrados.",
+                    "warning",
+                )
+                return redirect(url_for("routes.select_squad"))
+
             if "file" not in request.files:
                 flash("Nenhum arquivo selecionado", "error")
                 return redirect(request.url)
@@ -91,21 +101,32 @@ def register_squad_routes(routes_bp, upload_folder):
                 file.save(filepath)
 
                 try:
-                    squads_data = SquadLoader.load_file(filepath)
-                    replace_all_squads(
-                        current_app.config["DATABASE_PATH"],
-                        get_current_username(),
-                        squads_data,
-                    )
-                    session["squads_data"] = squads_data
-                    session["squads_list"] = list(squads_data.keys())
-                    session["squad_workspaces"] = {}
-                    session.pop("current_squad_name", None)
+                    uploaded_squads = SquadLoader.load_file(filepath)
+                    imported_count = 0
+
+                    for squad_name, squad_info in uploaded_squads.items():
+                        existing_squads[squad_name] = squad_info
+                        upsert_squad(
+                            current_app.config["DATABASE_PATH"],
+                            get_current_username(),
+                            squad_name,
+                            squad_info,
+                        )
+                        imported_count += 1
+
+                    session["squads_data"] = existing_squads
+                    session["squads_list"] = list(existing_squads.keys())
+                    session.setdefault("squad_workspaces", {})
                     session.modified = True
+
                     flash(
-                        f"Arquivo carregado com sucesso! {len(squads_data)} squads encontradas.",
+                        f"Arquivo carregado com sucesso! {imported_count} squad(s) importada(s).",
                         "success",
                     )
+
+                    if not session.get("current_squad_name") and existing_squads:
+                        session["current_squad_name"] = next(iter(existing_squads.keys()))
+
                     return redirect(url_for("routes.select_squad"))
                 except Exception as exc:
                     current_app.logger.exception("Erro ao processar upload de squads: %s", exc)
@@ -120,7 +141,12 @@ def register_squad_routes(routes_bp, upload_folder):
 
             flash("Formato de arquivo nao permitido. Use Excel (.xlsx) ou CSV.", "error")
 
-        return render_template("upload.html")
+        return render_template(
+            "upload.html",
+            has_existing_squads=bool(existing_squads),
+            existing_squads_count=len(existing_squads),
+            upload_locked=upload_locked,
+        )
 
     @routes_bp.route("/select_squad", methods=["GET", "POST"])
     def select_squad():
@@ -364,11 +390,8 @@ def register_squad_routes(routes_bp, upload_folder):
 
     @routes_bp.route("/reset", methods=["POST"])
     def reset():
-        clear_all_data(current_app.config["DATABASE_PATH"], get_current_username())
-        session.pop("squads_data", None)
-        session.pop("squads_list", None)
-        session.pop("squad_workspaces", None)
-        session.pop("current_squad_name", None)
-        session.modified = True
-        flash("Dados do usuario resetados. Carregue um novo arquivo.", "success")
-        return redirect(url_for("routes.upload_file"))
+        flash(
+            "Novo upload desabilitado no planejamento para preservar os dados ja cadastrados.",
+            "warning",
+        )
+        return redirect(url_for("routes.plan"))

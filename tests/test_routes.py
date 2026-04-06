@@ -53,6 +53,30 @@ def test_upload_page_and_invalid_extension(client):
     assert response.status_code == 200
 
 
+def test_upload_page_is_locked_after_initial_import(client, sample_squads_data):
+    seed_session(client, sample_squads_data, workspace=planning_workspace())
+
+    response = client.get("/upload")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "importacao de planilha fica bloqueada apos a carga inicial".lower() in html.lower()
+    assert 'type="file"' in html
+    assert 'disabled' in html
+
+
+def test_dashboard_and_plan_do_not_expose_active_upload_action_after_initial_import(client, sample_squads_data):
+    seed_session(client, sample_squads_data, workspace=planning_workspace())
+
+    dashboard_response = client.get("/dashboard")
+    plan_response = client.get("/plan")
+
+    assert dashboard_response.status_code == 200
+    assert plan_response.status_code == 200
+    assert 'href="/upload"' not in dashboard_response.get_data(as_text=True)
+    assert 'href="/upload"' not in plan_response.get_data(as_text=True)
+
+
 def test_upload_valid_csv_populates_session(client):
     authenticate_session(client)
 
@@ -206,7 +230,69 @@ def test_setup_updates_file_and_manual_members(client, sample_squads_data):
 
     dashboard_response = client.get("/dashboard/squad/Alpha")
     assert dashboard_response.status_code == 200
-    assert b"Custo da Squad" in dashboard_response.data
+    dashboard_html = dashboard_response.get_data(as_text=True)
+    assert "Custo da Squad" in dashboard_html
+    assert "R$ 11.380,00" in dashboard_html
+    assert "Inclui R$ 1.000,00 de custos complementares." in dashboard_html
+
+
+def test_release_configuration_stays_editable_until_first_sprint(client, sample_squads_data):
+    workspace = planning_workspace()
+    workspace["releases"] = []
+    seed_session(client, sample_squads_data, workspace=workspace)
+
+    response = client.get("/plan")
+    assert response.status_code == 200
+    empty_plan_html = response.get_data(as_text=True)
+    assert 'name="num_releases"' in empty_plan_html
+    assert 'name="release_points"' in empty_plan_html
+    assert 'name="release_sprints"' in empty_plan_html
+
+    response = client.post(
+        "/plan",
+        data={
+            "create_releases": "1",
+            "num_releases": "2",
+            "release_points": ["65", "30"],
+            "release_sprints": ["7", "3"],
+        },
+    )
+    assert response.status_code == 200
+    plan_html = response.get_data(as_text=True)
+    assert 'name="release_points"' in plan_html
+    assert 'name="release_sprints"' in plan_html
+    assert "Adicionar mais uma release" in plan_html
+    assert 'name="new_release_points"' not in plan_html
+    assert client.post("/add_release").status_code == 302
+
+    with client.session_transaction() as session:
+        releases = session["squad_workspaces"]["Alpha"]["releases"]
+        assert releases[0]["points"] == 65
+        assert releases[0]["sprints"] == 7
+        assert releases[1]["points"] == 30
+        assert releases[1]["sprints"] == 3
+        assert releases[2]["points"] == 50.0
+        assert releases[2]["sprints"] == 5
+        assert len(releases) == 3
+
+    assert client.post(
+        "/add_sprint",
+        data={
+            "sprint_plan_points": 10,
+            "sprint_done_points": 8,
+            "sprint_added_points": 0,
+            "sprint_planned_value": "100,00",
+            "sprint_actual_cost": "80,00",
+        },
+    ).status_code == 302
+
+    locked_response = client.get("/plan")
+    assert locked_response.status_code == 200
+    locked_html = locked_response.get_data(as_text=True)
+    assert 'name="release_points"' in locked_html
+    assert 'name="release_sprints"' in locked_html
+    assert "Adicionar mais uma release" not in locked_html
+    assert 'name="new_release_points"' not in locked_html
 
 
 def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
@@ -223,7 +309,7 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     response = client.post("/update_release_sprints", data={"release_index": 0, "release_sprints": 5})
     assert response.status_code == 302
 
-    response = client.post("/add_release", data={"new_release_points": 20, "new_release_sprints": 2})
+    response = client.post("/add_release")
     assert response.status_code == 302
 
     response = client.post(
@@ -263,13 +349,26 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     assert response.status_code == 302
 
 
-def test_release_configuration_is_locked_after_initial_setup(client, sample_squads_data):
+def test_release_structure_is_locked_after_first_sprint_but_values_remain_editable(client, sample_squads_data):
     workspace = planning_workspace()
+    workspace["history"] = [{"sprint_no": 1}]
     seed_session(client, sample_squads_data, workspace=workspace)
 
-    assert client.post("/add_release", data={"new_release_points": 20, "new_release_sprints": 2}).status_code == 302
-    assert client.post("/delete_release", data={"release_index": 0}).status_code == 302
+    plan_response = client.get("/plan")
+    assert plan_response.status_code == 200
+    plan_html = plan_response.get_data(as_text=True)
+    assert 'name="release_points"' in plan_html
+    assert 'name="release_sprints"' in plan_html
+    assert "Adicionar mais uma release" not in plan_html
+    assert 'name="new_release_points"' not in plan_html
+
     assert client.post("/update_release_points", data={"release_index": 0, "release_points": 99}).status_code == 302
+    assert client.post("/update_release_sprints", data={"release_index": 0, "release_sprints": 8}).status_code == 302
+    assert client.post("/add_release").status_code == 302
+    assert client.post("/delete_release", data={"release_index": 0}).status_code == 302
+
+    with client.session_transaction() as session:
+        assert session["squad_workspaces"]["Alpha"]["releases"] == [{"points": 99.0, "sprints": 8}]
 
 
 def test_charts_and_navigation_routes(client, sample_squads_data):
@@ -313,6 +412,18 @@ def test_member_removal_and_reset(client, sample_squads_data):
     assert client.post("/remove_file_member/0").status_code == 302
     assert client.post("/delete_squad/Alpha").status_code == 302
     assert client.post("/reset").status_code == 302
+
+
+def test_reset_route_no_longer_clears_planning_data(client, sample_squads_data):
+    seed_session(client, sample_squads_data, workspace=planning_workspace())
+
+    response = client.post("/reset")
+    assert response.status_code == 302
+    assert response.location.endswith("/plan")
+
+    with client.session_transaction() as session:
+        assert "Alpha" in session["squads_data"]
+        assert "Alpha" in session["squad_workspaces"]
 
 
 def test_route_helpers_cover_parsing_and_workspace_branches(app):

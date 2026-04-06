@@ -7,39 +7,98 @@
     </div>
     <div class="card-body collapse show" id="plan-releases-body">
         {% if not releases %}
-        <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end">
+        <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end" data-release-config-form>
             {% include "partials/layout/csrf_input.html" %}
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label">Quantidade de Releases</label>
-                <input type="number" class="form-control" name="num_releases" placeholder="Ex: 3" min="1" step="1" required>
+                <input type="number" class="form-control" name="num_releases" value="1" min="1" step="1" required data-release-count-input>
             </div>
-            <div class="col-md-6">
-                <button type="submit" name="create_releases" class="btn btn-primary w-100">Criar Releases</button>
+            <div class="col-md-8">
+                <p class="text-muted small mb-0">Informe quantas releases deseja planejar e personalize os pontos e sprints de cada uma logo abaixo.</p>
+            </div>
+            <div class="col-12" data-release-config-rows>
+                <div class="row g-3 align-items-end" data-release-row>
+                    <div class="col-md-4">
+                        <label class="form-label">Release 1</label>
+                        <input type="text" class="form-control" value="Release 1" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Pontos</label>
+                        <input type="number" class="form-control" name="release_points" value="50" min="0" step="0.5" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sprints</label>
+                        <input type="number" class="form-control" name="release_sprints" value="5" min="1" step="1" required>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <button type="submit" name="create_releases" class="btn btn-primary w-100">Salvar Configuracao das Releases</button>
             </div>
         </form>
         {% else %}
         <div class="alert alert-light border mb-3">
-            As releases foram configuradas e agora estao bloqueadas para manter a integridade do planejamento.
+            {% if release_structure_locked %}
+            A execucao do projeto ja comecou. Voce ainda pode ajustar pontos e sprints de cada release, mas adicionar ou excluir releases fica bloqueado para preservar o historico.
+            {% else %}
+            As releases foram criadas com valores iniciais de referencia. Ajuste pontos e sprints livremente antes de registrar a primeira sprint.
+            {% endif %}
         </div>
         <div class="table-responsive">
-            <table class="table table-border">
+            <table class="table table-border align-middle">
                 <thead>
                     <tr>
                         <th>Release</th>
                         <th>Pontos</th>
                         <th>Sprints</th>
+                        <th class="text-end">Acoes</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for i, release in releases %}
                     <tr>
                         <td><strong>Release {{ i }}</strong></td>
-                        <td>{{ release.points }}</td>
-                        <td>{{ release.sprints }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.update_release_points') }}" class="d-flex gap-2 align-items-center">
+                                {% include "partials/layout/csrf_input.html" %}
+                                <input type="hidden" name="release_index" value="{{ i - 1 }}">
+                                <input type="number" class="form-control" name="release_points" value="{{ release.points }}" min="0" step="0.5" required>
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('routes.update_release_sprints') }}" class="d-flex gap-2 align-items-center">
+                                {% include "partials/layout/csrf_input.html" %}
+                                <input type="hidden" name="release_index" value="{{ i - 1 }}">
+                                <input type="number" class="form-control" name="release_sprints" value="{{ release.sprints }}" min="1" step="1" required>
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+                            </form>
+                        </td>
+                        <td class="text-end">
+                            {% if release_structure_locked %}
+                            <span class="small text-muted">Bloqueada</span>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('routes.delete_release') }}" class="inline-form">
+                                {% include "partials/layout/csrf_input.html" %}
+                                <input type="hidden" name="release_index" value="{{ i - 1 }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Excluir</button>
+                            </form>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        <div class="mt-3">
+            {% if not release_structure_locked %}
+            <form method="POST" action="{{ url_for('routes.add_release') }}" class="inline-form">
+                {% include "partials/layout/csrf_input.html" %}
+                <button type="submit" class="btn btn-outline-primary">Adicionar mais uma release</button>
+            </form>
+            {% else %}
+            <span class="small text-muted">Adicionar novas releases fica indisponivel apos o inicio da execucao.</span>
+            {% endif %}
         </div>
         {% endif %}
     </div>

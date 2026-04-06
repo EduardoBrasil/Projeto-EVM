@@ -2,7 +2,7 @@ import io
 from pathlib import Path
 
 from app import format_currency
-from storage import upsert_squad
+from storage import save_workspace, upsert_squad
 from tests.conftest import build_squad_csv_bytes
 
 
@@ -94,6 +94,47 @@ def test_upload_file_is_removed_after_processing(app):
 
     assert response.status_code == 302
     assert not any(Path(app.config["UPLOAD_FOLDER"]).iterdir())
+
+
+def test_reupload_is_blocked_after_initial_import_and_preserves_existing_workspace(app):
+    upsert_squad(app.config["DATABASE_PATH"], "alice", "Alpha", {"members": [], "total_cost": 100})
+    save_workspace(
+        app.config["DATABASE_PATH"],
+        "alice",
+        "Alpha",
+        {"members": [], "releases": [{"points": 40, "sprints": 4}], "history": [{"sprint_no": 1}]},
+    )
+
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["username"] = "alice"
+
+    response = client.post(
+        "/upload",
+        data={
+            "file": (
+                io.BytesIO(
+                    build_squad_csv_bytes(
+                        rows=[
+                            ("Alpha", "Dev", "Backend", 1, 10, 20, 0),
+                            ("Beta", "QA", "Quality", 1, 8, 15, 0),
+                        ]
+                    )
+                ),
+                "squads.csv",
+            )
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Selecionar Squad" in html
+    with client.session_transaction() as session:
+        assert set(session["squads_data"].keys()) == {"Alpha"}
+        assert session["squad_workspaces"]["Alpha"]["history"] == [{"sprint_no": 1}]
 
 
 def test_delete_squad_updates_current_selection(app):

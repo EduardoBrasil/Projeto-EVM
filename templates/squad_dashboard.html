@@ -14,7 +14,7 @@
         </p>
         <div class="quick-actions mt-4">
             <a class="btn btn-primary" href="{{ url_for('routes.plan') }}">Abrir planejamento</a>
-            <a class="btn btn-outline-secondary" href="{{ url_for('routes.setup') }}">Editar composicao</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.setup') }}">Time e custos</a>
             <a class="btn btn-outline-secondary" href="{{ url_for('routes.baseline') }}">Abrir baseline</a>
             <a class="btn btn-outline-secondary" href="{{ url_for('routes.export_project_report') }}">Exportar relatorio do projeto</a>
             <a class="btn btn-outline-primary" href="{{ url_for('routes.dashboard') }}">Voltar ao dashboard geral</a>
@@ -24,6 +24,7 @@
         <div class="summary-pill">
             <div class="label">Custo da Squad</div>
             <div class="value">{{ current_summary.squad_cost | currency }}</div>
+            <div class="small text-muted">Inclui {{ current_summary.additional_costs_total | currency }} de custos complementares.</div>
         </div>
         <div class="summary-pill">
             <div class="label">BAC</div>
