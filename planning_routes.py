@@ -22,8 +22,56 @@ from route_helpers import (
 
 
 def register_planning_routes(routes_bp):
-    def releases_are_locked(workspace):
-        return bool(normalize_releases(workspace.get("releases", [])))
+    def release_structure_is_locked(workspace):
+        return bool(workspace.get("history"))
+
+    def parse_release_count(raw_value, default=1):
+        try:
+            return max(int(raw_value or default), 1)
+        except (TypeError, ValueError):
+            return int(default)
+
+    def parse_release_index(raw_value):
+        try:
+            return int(raw_value)
+        except (TypeError, ValueError):
+            return -1
+
+    def parse_release_points(raw_value, default=50.0):
+        if raw_value in (None, ""):
+            return float(default)
+        return max(parse_brazilian_float(raw_value), 0.0)
+
+    def parse_release_sprints(raw_value, default=5):
+        if raw_value in (None, ""):
+            return int(default)
+
+        parsed_value = parse_brazilian_float(raw_value)
+        if parsed_value <= 0:
+            return int(default)
+        return max(int(parsed_value), 1)
+
+    def build_releases_from_create_form(form):
+        release_count = parse_release_count(form.get("num_releases", 1))
+        release_points_values = form.getlist("release_points")
+        release_sprints_values = form.getlist("release_sprints")
+        releases = []
+
+        for index in range(release_count):
+            releases.append(
+                {
+                    "points": parse_release_points(
+                        release_points_values[index] if index < len(release_points_values) else 50,
+                        50,
+                    ),
+                    "sprints": parse_release_sprints(
+                        release_sprints_values[index] if index < len(release_sprints_values) else 5,
+                        5,
+                    ),
+                }
+            )
+
+        return releases
 
     @routes_bp.route("/plan", methods=["GET", "POST"])
     def plan():
@@ -37,10 +85,16 @@ def register_planning_routes(routes_bp):
         workspace.setdefault("default_sprint_weeks", 2)
 
         if request.method == "POST" and "create_releases" in request.form and not workspace["releases"]:
-            num_releases = int(request.form.get("num_releases", 1))
-            workspace["releases"] = [{"points": 50, "sprints": 5} for _ in range(num_releases)]
+            workspace["releases"] = build_releases_from_create_form(request.form)
+            flash(
+                "Releases configuradas com sucesso. Voce pode revisar os valores sempre que precisar.",
+                "success",
+            )
         elif request.method == "POST" and "create_releases" in request.form:
-            flash("As releases ja foram configuradas e estao bloqueadas para edicao.", "warning")
+            if release_structure_is_locked(workspace):
+                flash("A estrutura das releases esta bloqueada, mas voce ainda pode editar pontos e sprints.", "warning")
+            else:
+                flash("As releases ja foram criadas. Ajuste os valores abaixo ou adicione novas releases.", "warning")
 
         planning_totals = get_planning_totals(workspace)
         squad_cost = planning_totals["squad_cost"]
@@ -84,6 +138,7 @@ def register_planning_routes(routes_bp):
             "completion_percentage": 0,
         }
         projection = calculate_release_projection(history, bac, total_sprints, total_points, sprint_cost)
+        release_structure_locked = release_structure_is_locked(workspace)
 
         return render_template(
             "plan.html",
@@ -103,6 +158,7 @@ def register_planning_routes(routes_bp):
             current_component_count=current_component_count,
             baseline=baseline,
             baseline_comparison=baseline_comparison,
+            release_structure_locked=release_structure_locked,
         )
 
     @routes_bp.route("/create_baseline", methods=["POST"])
@@ -166,19 +222,16 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
-        if releases_are_locked(workspace):
-            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
-            return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
-        release_index = int(request.form.get("release_index", 0))
-        new_points = float(request.form.get("release_points", 50))
+        release_index = parse_release_index(request.form.get("release_index", 0))
+        new_points = parse_release_points(request.form.get("release_points", 50))
 
         if 0 <= release_index < len(releases):
             releases[release_index]["points"] = new_points
             workspace["releases"] = releases
             save_current_squad_workspace(workspace)
-            flash(f"Release {release_index + 1} atualizada para {new_points} pontos.", "success")
+            flash(f"Release {release_index + 1} atualizada para {new_points:g} pontos.", "success")
         else:
             flash("Indice de release invalido.", "error")
 
@@ -189,13 +242,10 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
-        if releases_are_locked(workspace):
-            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
-            return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
-        release_index = int(request.form.get("release_index", 0))
-        new_sprints = int(request.form.get("release_sprints", 5))
+        release_index = parse_release_index(request.form.get("release_index", 0))
+        new_sprints = parse_release_sprints(request.form.get("release_sprints", 5))
 
         if 0 <= release_index < len(releases):
             releases[release_index]["sprints"] = new_sprints
@@ -212,20 +262,20 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
-        if releases_are_locked(workspace):
-            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
+        if release_structure_is_locked(workspace):
+            flash("A estrutura das releases esta bloqueada porque o projeto ja possui sprints registradas.", "warning")
             return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
         releases.append(
             {
-                "points": float(request.form.get("new_release_points", 50)),
-                "sprints": int(request.form.get("new_release_sprints", 5)),
+                "points": 50.0,
+                "sprints": 5,
             }
         )
         workspace["releases"] = releases
         save_current_squad_workspace(workspace)
-        flash("Nova release adicionada com sucesso.", "success")
+        flash("Nova release adicionada com valores iniciais. Ajuste pontos e sprints na linha criada.", "success")
         return redirect(url_for("routes.plan"))
 
     @routes_bp.route("/delete_release", methods=["POST"])
@@ -233,12 +283,12 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
-        if releases_are_locked(workspace):
-            flash("As releases configuradas estao bloqueadas para edicao.", "warning")
+        if release_structure_is_locked(workspace):
+            flash("A estrutura das releases esta bloqueada porque o projeto ja possui sprints registradas.", "warning")
             return redirect(url_for("routes.plan"))
 
         releases = normalize_releases(workspace.get("releases", []))
-        release_index = int(request.form.get("release_index", 0))
+        release_index = parse_release_index(request.form.get("release_index", 0))
 
         if 0 <= release_index < len(releases):
             removed = releases.pop(release_index)

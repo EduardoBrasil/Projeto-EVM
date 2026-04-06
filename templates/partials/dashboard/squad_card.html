@@ -16,6 +16,7 @@
             <div class="metric-card">
                 <div class="label">Custo da Squad</div>
                 <div class="value">{{ summary.squad_cost | currency }}</div>
+                <div class="small text-muted">Inclui {{ summary.additional_costs_total | currency }} em custos complementares.</div>
             </div>
             <div class="metric-card">
                 <div class="label">BAC</div>

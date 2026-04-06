@@ -32,15 +32,28 @@
     <div class="card span-6">
         <div class="card-header">Carregar Arquivo</div>
         <div class="card-body">
+            {% if upload_locked %}
+            <div class="alert alert-light border">
+                Ja existem {{ existing_squads_count }} squad(s) cadastrada(s). Para preservar o historico e os dados ja imputados, a importacao de planilha fica bloqueada apos a carga inicial.
+            </div>
+            {% endif %}
             <form method="POST" enctype="multipart/form-data" class="row g-3">
                 {% include "partials/layout/csrf_input.html" %}
                 <div class="col-12">
                     <label class="form-label">Arquivo Excel ou CSV</label>
-                    <input type="file" class="form-control form-control-lg" name="file" accept=".xlsx,.xls,.csv" required>
-                    <small class="text-muted">Use uma planilha com todas as squads; o sistema separa o planejamento de cada uma.</small>
+                    <input type="file" class="form-control form-control-lg" name="file" accept=".xlsx,.xls,.csv" {% if upload_locked %}disabled{% else %}required{% endif %}>
+                    <small class="text-muted">
+                        {% if upload_locked %}
+                        Para incluir novas squads sem risco de sobrescrever dados, use a criacao manual na tela de selecao de squad.
+                        {% else %}
+                        Use uma planilha com todas as squads; o sistema separa o planejamento de cada uma.
+                        {% endif %}
+                    </small>
                 </div>
                 <div class="col-12">
-                    <button type="submit" class="btn btn-primary w-100">Carregar planilha</button>
+                    <button type="submit" class="btn btn-primary w-100" {% if upload_locked %}disabled{% endif %}>
+                        {% if upload_locked %}Importacao bloqueada apos a carga inicial{% else %}Carregar planilha{% endif %}
+                    </button>
                 </div>
             </form>
         </div>

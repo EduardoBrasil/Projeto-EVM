@@ -235,17 +235,23 @@ class ExecutiveReportBuilder:
     def build_sprint_report(self, summary):
         return self.build_project_report(summary)
 
+    def _save_pdf_figure(self, pdf, fig):
+        try:
+            pdf.savefig(fig, bbox_inches="tight")
+        finally:
+            plt.close(fig)
+
     def build_project_report(self, summary):
         buffer = io.BytesIO()
         with PdfPages(buffer) as pdf:
-            pdf.savefig(self._build_project_summary_page(summary), bbox_inches="tight")
-            pdf.savefig(self._build_project_insights_page(summary), bbox_inches="tight")
+            self._save_pdf_figure(pdf, self._build_project_summary_page(summary))
+            self._save_pdf_figure(pdf, self._build_project_insights_page(summary))
             for sprint_page in self._build_sprint_evolution_pages(summary):
-                pdf.savefig(sprint_page, bbox_inches="tight")
+                self._save_pdf_figure(pdf, sprint_page)
             history = summary.get("history", [])
-            pdf.savefig(chart_factory.create("cumulative").build(history), bbox_inches="tight")
-            pdf.savefig(chart_factory.create("cpi").build(history), bbox_inches="tight")
-            pdf.savefig(chart_factory.create("spi").build(history), bbox_inches="tight")
+            self._save_pdf_figure(pdf, chart_factory.create("cumulative").build(history))
+            self._save_pdf_figure(pdf, chart_factory.create("cpi").build(history))
+            self._save_pdf_figure(pdf, chart_factory.create("spi").build(history))
         buffer.seek(0)
         return buffer
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from models import EVMCalculator, Squad, SquadLoader, TeamMember
+from tests.conftest import build_squad_csv_bytes
 
 
 def test_team_member_and_squad_costs():
@@ -21,8 +22,8 @@ def test_team_member_and_squad_costs():
 @pytest.mark.parametrize(
     ("planned", "earned", "cost", "value_per_point", "expected_status"),
     [
-        (10, 10, 50, 10, "✓ OK"),
-        (10, 5, 80, 10, "⚠️ Atenção: Acima do custo e atrasado"),
+        (10, 10, 50, 10, "\u2713 OK"),
+        (10, 5, 80, 10, "\u26a0\ufe0f Aten\u00e7\u00e3o: Acima do custo e atrasado"),
     ],
 )
 def test_evm_calculator_metrics(planned, earned, cost, value_per_point, expected_status):
@@ -34,10 +35,12 @@ def test_evm_calculator_metrics(planned, earned, cost, value_per_point, expected
 
 def test_squad_loader_reads_csv_and_computes_total_cost(tmp_path):
     csv_path = tmp_path / "squads.csv"
-    csv_path.write_text(
-        "SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO\n"
-        "Alpha,Dev,Backend,2,10,20,0\n",
-        encoding="utf-8",
+    csv_path.write_bytes(
+        build_squad_csv_bytes(
+            rows=[
+                ("Alpha", "Dev", "Backend", 2, 10, 20, 0),
+            ]
+        )
     )
 
     squads = SquadLoader.load_file(str(csv_path))
@@ -57,10 +60,12 @@ def test_squad_loader_rejects_missing_columns(tmp_path):
 
 def test_squad_loader_wraps_row_errors(tmp_path):
     csv_path = tmp_path / "invalid_row.csv"
-    csv_path.write_text(
-        "SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO\n"
-        "Alpha,Dev,Backend,abc,10,20,0\n",
-        encoding="utf-8",
+    csv_path.write_bytes(
+        build_squad_csv_bytes(
+            rows=[
+                ("Alpha", "Dev", "Backend", "abc", 10, 20, 0),
+            ]
+        )
     )
 
     with pytest.raises(ValueError, match="Erro na linha da squad 'Alpha'"):
@@ -94,5 +99,5 @@ def test_squad_loader_safe_float_invalid_inputs_raise():
 
 
 def test_evm_calculator_status_variants():
-    assert EVMCalculator.get_status(0.9, 1.1) == "⚠️ Atenção: Acima do custo"
-    assert EVMCalculator.get_status(1.1, 0.9) == "⚠️ Atenção: Atrasado"
+    assert EVMCalculator.get_status(0.9, 1.1) == "\u26a0\ufe0f Aten\u00e7\u00e3o: Acima do custo"
+    assert EVMCalculator.get_status(1.1, 0.9) == "\u26a0\ufe0f Aten\u00e7\u00e3o: Atrasado"

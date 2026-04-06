@@ -13,7 +13,13 @@
         </p>
         <div class="quick-actions mt-4">
             <a class="btn btn-primary" href="{{ url_for('routes.select_squad') }}">Selecionar squad</a>
+            {% if summaries %}
+            <button type="button" class="btn btn-outline-secondary" disabled title="Importacao disponivel apenas na carga inicial.">
+                Importacao inicial concluida
+            </button>
+            {% else %}
             <a class="btn btn-outline-secondary" href="{{ url_for('routes.upload_file') }}">Importar nova planilha</a>
+            {% endif %}
         </div>
     </div>
     <div class="summary-strip">
