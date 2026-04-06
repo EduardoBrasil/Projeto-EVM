@@ -19,7 +19,19 @@
         <div class="amount">{{ manual_cost | currency }}</div>
     </div>
     <div class="info-box">
-        <h6>Custo Total Mensal</h6>
+        <h6>Infraestrutura</h6>
+        <div class="amount">{{ infrastructure_cost | currency }}</div>
+    </div>
+    <div class="info-box">
+        <h6>Plano de Saude</h6>
+        <div class="amount">{{ health_plan_cost | currency }}</div>
+    </div>
+    <div class="info-box">
+        <h6>Vale Alimentacao e Refeicao</h6>
+        <div class="amount">{{ meal_allowance_cost | currency }}</div>
+    </div>
+    <div class="info-box">
+        <h6>Custo da Squad</h6>
         <div class="amount">{{ squad_cost | currency }}</div>
     </div>
 </section>
@@ -29,6 +41,26 @@
         <div class="card-header">Visao do Projeto</div>
         <div class="card-body">
             <p class="text-muted mb-4">Edite aqui a composicao base da squad. Qualquer alteracao salva atualiza o custo mensal e refletira automaticamente no custo da sprint.</p>
+            <form method="POST" action="{{ url_for('routes.update_additional_costs') }}" class="row g-3 align-items-end mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Custo de Infraestrutura</label>
+                    <input type="text" class="form-control" name="infrastructure_cost" value="{{ '{:,.2f}'.format(infrastructure_cost).replace(',', 'X').replace('.', ',').replace('X', '.') }}" placeholder="0,00">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Plano de Saude</label>
+                    <input type="text" class="form-control" name="health_plan_cost" value="{{ '{:,.2f}'.format(health_plan_cost).replace(',', 'X').replace('.', ',').replace('X', '.') }}" placeholder="0,00">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Vale Alimentacao e Refeicao</label>
+                    <input type="text" class="form-control" name="meal_allowance_cost" value="{{ '{:,.2f}'.format(meal_allowance_cost).replace(',', 'X').replace('.', ',').replace('X', '.') }}" placeholder="0,00">
+                </div>
+                <div class="col-md-8">
+                    <p class="text-muted small mb-0">Esses custos complementares entram no custo mensal consolidado da squad e impactam o BAC e o custo por sprint.</p>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-outline-primary w-100">Salvar custos complementares</button>
+                </div>
+            </form>
             {% include "partials/setup/file_members_table.html" %}
         </div>
     </div>

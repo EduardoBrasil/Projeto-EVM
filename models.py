@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from formula_helpers import DEFAULT_MONTHLY_HOURS, calculate_file_member_monthly_cost
+
 
 class TeamMember:
     """Representa um membro da squad."""
@@ -19,7 +21,7 @@ class TeamMember:
         self.salary = salary
         self.hourly_rate = hourly_rate
 
-    def calculate_cost(self, hours_per_period: float = 160) -> float:
+    def calculate_cost(self, hours_per_period: float = DEFAULT_MONTHLY_HOURS) -> float:
         return self.salary + (hours_per_period * self.hourly_rate)
 
     def to_dict(self) -> dict:
@@ -40,7 +42,7 @@ class Squad:
     def add_member(self, role: str, function: str, salary: float, hourly_rate: float) -> None:
         self.members.append(TeamMember(role, function, salary, hourly_rate))
 
-    def get_total_cost(self, hours_per_period: float = 160) -> float:
+    def get_total_cost(self, hours_per_period: float = DEFAULT_MONTHLY_HOURS) -> float:
         return sum(member.calculate_cost(hours_per_period) for member in self.members)
 
     def get_members_list(self) -> list:
@@ -80,7 +82,10 @@ class SquadLoader:
                 except ValueError as exc:
                     raise ValueError(f"Erro na linha da squad '{squad_name}': {exc}") from exc
 
-                total_grupo = member_data["qtde"] * member_data["preco_mhh"] * 8 * 5 * 4.2
+                total_grupo = calculate_file_member_monthly_cost(
+                    member_data["qtde"],
+                    member_data["preco_mhh"],
+                )
                 member_data["total_grupo"] = total_grupo
                 members.append(member_data)
                 total_group_cost += total_grupo

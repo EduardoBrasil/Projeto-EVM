@@ -122,6 +122,14 @@ def test_setup_updates_file_and_manual_members(client, sample_squads_data):
 
     assert client.post("/update_file_members", data={"file_member_quantity_0": "0.5"}).status_code == 302
     assert client.post(
+        "/update_additional_costs",
+        data={
+            "infrastructure_cost": "500,00",
+            "health_plan_cost": "300,00",
+            "meal_allowance_cost": "200,00",
+        },
+    ).status_code == 302
+    assert client.post(
         "/update_manual_members",
         data={
             "manual_role_0": "QA Lead",
@@ -132,12 +140,18 @@ def test_setup_updates_file_and_manual_members(client, sample_squads_data):
         },
     ).status_code == 302
 
+    dashboard_response = client.get("/dashboard/squad/Alpha")
+    assert dashboard_response.status_code == 200
+    assert b"Custo da Squad" in dashboard_response.data
+
 
 def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     workspace = planning_workspace()
     seed_session(client, sample_squads_data, workspace=workspace)
 
     assert client.get("/plan").status_code == 200
+    assert client.get("/baseline").status_code == 200
+    assert client.post("/create_baseline").status_code == 302
 
     response = client.post("/update_release_points", data={"release_index": 0, "release_points": 50})
     assert response.status_code == 302
@@ -175,6 +189,11 @@ def test_plan_crud_release_and_sprint_flow(client, sample_squads_data):
     response = client.get("/plan")
     assert response.status_code == 200
     assert b"Hist" in response.data
+    assert b"Baseline" in response.data
+
+    baseline_response = client.get("/baseline")
+    assert baseline_response.status_code == 200
+    assert b"Comparativo Atual x Baseline" in baseline_response.data
 
     response = client.post("/delete_sprint/1")
     assert response.status_code == 302

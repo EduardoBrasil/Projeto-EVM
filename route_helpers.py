@@ -108,6 +108,11 @@ def ensure_current_squad_workspace():
     workspace.setdefault("history", [])
     workspace.setdefault("squad_members_from_file", copy.deepcopy(base_members))
     workspace.setdefault("squad_total_cost", base_total_cost)
+    workspace.setdefault("infrastructure_cost", 0)
+    workspace.setdefault("health_plan_cost", 0)
+    workspace.setdefault("meal_allowance_cost", 0)
+    workspace.setdefault("additional_costs_total", 0)
+    workspace.setdefault("baseline", None)
     return workspace
 
 
@@ -212,3 +217,11 @@ def calculate_release_projection(history, bac, total_sprints, total_release_poin
 
 def get_planning_totals(workspace):
     return planning_service.calculate_planning_totals(workspace)
+
+
+def build_baseline_snapshot(workspace):
+    return planning_service.build_baseline_snapshot(workspace)
+
+
+def calculate_baseline_comparison(workspace, baseline):
+    return planning_service.calculate_baseline_comparison(workspace, baseline)

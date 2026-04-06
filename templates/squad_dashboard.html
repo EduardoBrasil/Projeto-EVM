@@ -14,6 +14,7 @@
         </p>
         <div class="quick-actions mt-4">
             <a class="btn btn-primary" href="{{ url_for('routes.plan') }}">Abrir planejamento</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.baseline') }}">Abrir baseline</a>
             <a class="btn btn-outline-secondary" href="{{ url_for('routes.setup') }}">Editar composicao</a>
             <a class="btn btn-outline-primary" href="{{ url_for('routes.dashboard') }}">Voltar ao dashboard geral</a>
             <form method="POST" action="{{ url_for('routes.delete_squad', squad_name=current_summary.name) }}" class="inline-form" onsubmit="return confirm('Deseja remover a squad {{ current_summary.name }}? Esta acao nao pode ser desfeita.');">
@@ -23,7 +24,7 @@
     </div>
     <div class="summary-strip">
         <div class="summary-pill">
-            <div class="label">Custo mensal</div>
+            <div class="label">Custo da Squad</div>
             <div class="value">{{ current_summary.squad_cost | currency }}</div>
         </div>
         <div class="summary-pill">
@@ -74,18 +75,21 @@
     </div>
 
     <div class="card span-4">
-        <div class="card-header">Ultima medicao</div>
+        <div class="card-header">Ritmo das Ultimas Sprints</div>
         <div class="card-body">
             {% if current_summary.last_metrics %}
+            <div class="small text-muted mb-3">
+                Estes indicadores mostram o desempenho recente da sprint. Eles nao substituem a projecao final da release.
+            </div>
             <div class="grid-2">
                 <div class="metric-card">
-                    <div class="label">CPI</div>
+                    <div class="label">CPI da ultima sprint</div>
                     <div class="value {% if current_summary.last_metrics.CPI >= 1 %}text-success{% else %}text-danger{% endif %}">
                         {{ current_summary.last_metrics.CPI | round(2) }}
                     </div>
                 </div>
                 <div class="metric-card">
-                    <div class="label">SPI</div>
+                    <div class="label">SPI da ultima sprint</div>
                     <div class="value {% if current_summary.last_metrics.SPI >= 1 %}text-success{% else %}text-danger{% endif %}">
                         {{ current_summary.last_metrics.SPI | round(2) }}
                     </div>
@@ -161,8 +165,11 @@
     </div>
 
     <div class="card span-12">
-        <div class="card-header">Acompanhamento do Projeto</div>
+        <div class="card-header">Projecao Consolidada da Release</div>
         <div class="card-body">
+            <div class="small text-muted mb-3">
+                Esta leitura considera o escopo total atual da release e a velocidade acumulada do projeto. Por isso, a release pode continuar atrasada mesmo quando as ultimas sprints tiveram SPI acima de 1.
+            </div>
             <div class="grid-2">
                 <div class="metric-card">
                     <div class="label">Projecao de custo final</div>

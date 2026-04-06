@@ -25,6 +25,9 @@
         <a class="nav-link-custom {% if request.endpoint == 'routes.plan' %}active{% endif %}" href="{{ url_for('routes.plan') }}">
             Planejamento da Squad
         </a>
+        <a class="nav-link-custom {% if request.endpoint == 'routes.baseline' %}active{% endif %}" href="{{ url_for('routes.baseline') }}">
+            Baseline do Projeto
+        </a>
         {% endif %}
         {% else %}
         <a class="nav-link-custom {% if request.endpoint == 'routes.login' %}active{% endif %}" href="{{ url_for('routes.login') }}">

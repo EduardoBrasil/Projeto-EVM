@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Baseline do Projeto - EVM Web{% endblock %}
+{% block page_title %}Baseline do Projeto{% endblock %}
+
+{% block content %}
+<section class="dashboard-banner">
+    <div>
+        <div class="eyebrow">Governanca</div>
+        <div class="banner-title">{{ current_squad }}</div>
+        <p class="banner-copy">
+            Esta aba concentra a referencia oficial do projeto. Aqui voce compara o plano atual com a baseline da squad sem misturar essas informacoes com a operacao diaria.
+        </p>
+        <div class="quick-actions mt-4">
+            <a class="btn btn-primary" href="{{ url_for('routes.plan') }}">Voltar ao planejamento</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.squad_dashboard', squad_name=current_squad) }}">Abrir dashboard da squad</a>
+            <form method="POST" action="{{ url_for('routes.create_baseline') }}" class="inline-form">
+                <button type="submit" class="btn btn-outline-secondary">
+                    {% if baseline %}Atualizar baseline{% else %}Gerar baseline{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="summary-strip">
+        <div class="summary-pill">
+            <div class="label">Custo da Squad</div>
+            <div class="value">{{ squad_cost | currency }}</div>
+        </div>
+        <div class="summary-pill">
+            <div class="label">BAC Atual</div>
+            <div class="value">{{ bac | currency }}</div>
+        </div>
+        <div class="summary-pill">
+            <div class="label">Baseline</div>
+            <div class="value">{% if baseline %}Ativa{% else %}Nao gerada{% endif %}</div>
+        </div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <div class="card span-6">
+        <div class="card-header">Contexto Atual da Squad</div>
+        <div class="card-body">
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="label">Custo da Squad</div>
+                    <div class="value">{{ squad_cost | currency }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Custo por sprint</div>
+                    <div class="value">{{ sprint_cost | currency }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Componentes</div>
+                    <div class="value">{{ current_component_count | round(2) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card span-6">
+        <div class="card-header">Contexto Atual do Projeto</div>
+        <div class="card-body">
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="label">Pontos da release</div>
+                    <div class="value">{{ total_points }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Sprints planejadas</div>
+                    <div class="value">{{ total_sprints }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">BAC</div>
+                    <div class="value">{{ bac | currency }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if baseline %}
+    <div class="card span-6">
+        <div class="card-header">Baseline da Squad</div>
+        <div class="card-body">
+            <div class="small text-muted mb-3">Baseline gerada em {{ baseline.created_at }}.</div>
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="label">Custo da Squad baseline</div>
+                    <div class="value">{{ baseline.squad_cost | currency }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Custo por sprint baseline</div>
+                    <div class="value">{{ baseline.sprint_cost | currency }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Componentes baseline</div>
+                    <div class="value">{{ baseline.component_count | round(2) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card span-6">
+        <div class="card-header">Baseline do Projeto</div>
+        <div class="card-body">
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="label">Escopo baseline</div>
+                    <div class="value">{{ baseline.total_points }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Prazo baseline</div>
+                    <div class="value">{{ baseline.total_sprints }} sprint(s)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">BAC baseline</div>
+                    <div class="value">{{ baseline.bac | currency }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card span-12">
+        <div class="card-header">Comparativo Atual x Baseline</div>
+        <div class="card-body">
+            {% if baseline_comparison %}
+            <div class="grid-2">
+                <div class="metric-card">
+                    <div class="label">Variacao de escopo</div>
+                    <div class="value {% if baseline_comparison.scope_delta == 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ baseline_comparison.scope_delta }}
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Variacao de prazo</div>
+                    <div class="value {% if baseline_comparison.sprints_delta == 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ baseline_comparison.sprints_delta }} sprint(s)
+                    </div>
+                </div>
+            </div>
+            <div class="grid-2 mt-3">
+                <div class="metric-card">
+                    <div class="label">Variacao de custo da squad</div>
+                    <div class="value {% if baseline_comparison.squad_cost_delta == 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ baseline_comparison.squad_cost_delta | currency }}
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Variacao de BAC</div>
+                    <div class="value {% if baseline_comparison.bac_delta == 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ baseline_comparison.bac_delta | currency }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card span-12">
+        <div class="card-header">Baseline do Projeto</div>
+        <div class="card-body">
+            <div class="empty-state">Ainda nao existe baseline para esta squad. Gere a baseline a partir do planejamento quando quiser congelar a referencia oficial do projeto.</div>
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

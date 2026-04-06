@@ -125,6 +125,68 @@ def test_component_count_supports_fractional_allocations():
     assert service.calculate_component_count(workspace) == 2.75
 
 
+def test_sprint_cost_and_bac_follow_two_sprints_per_month_rule():
+    service = PlanningService()
+    workspace = {
+        "releases": [{"points": 40, "sprints": 4}],
+        "history": [],
+        "members": [],
+        "squad_members_from_file": [{"cargo": "Dev", "qtde": 1, "preco_mhh": 100}],
+        "squad_cost": 999999,
+        "default_sprint_weeks": 2,
+    }
+
+    totals = service.calculate_planning_totals(workspace)
+
+    assert service.calculate_sprint_cost(4000, sprint_weeks=2, component_count=0) == 2000
+    assert totals["squad_cost"] == 16000
+    assert totals["sprint_cost"] == 8000
+    assert totals["bac"] == 32000
+
+
+def test_workspace_cost_includes_additional_project_costs():
+    service = PlanningService()
+    workspace = {
+        "releases": [{"points": 40, "sprints": 4}],
+        "history": [],
+        "members": [],
+        "squad_members_from_file": [{"cargo": "Dev", "qtde": 1, "preco_mhh": 100}],
+        "infrastructure_cost": 500,
+        "health_plan_cost": 300,
+        "meal_allowance_cost": 200,
+    }
+
+    totals = service.calculate_planning_totals(workspace)
+    summary = service.calculate_workspace_summary("Alpha", workspace, {"members": [], "total_cost": 0})
+
+    assert totals["additional_costs"]["total"] == 1000
+    assert totals["squad_cost"] == 17000
+    assert summary["infrastructure_cost"] == 500
+    assert summary["health_plan_cost"] == 300
+    assert summary["meal_allowance_cost"] == 200
+
+
+def test_baseline_snapshot_and_comparison_reflect_current_plan():
+    service = PlanningService()
+    workspace = {
+        "releases": [{"points": 40, "sprints": 4}],
+        "history": [],
+        "members": [],
+        "squad_members_from_file": [{"cargo": "Dev", "qtde": 1, "preco_mhh": 100}],
+        "infrastructure_cost": 500,
+    }
+
+    baseline = service.build_baseline_snapshot(workspace)
+    workspace["releases"] = [{"points": 50, "sprints": 5}]
+    comparison = service.calculate_baseline_comparison(workspace, baseline)
+
+    assert baseline["total_points"] == 40
+    assert baseline["total_sprints"] == 4
+    assert comparison["scope_delta"] == 10
+    assert comparison["sprints_delta"] == 1
+    assert comparison["has_changes"] is True
+
+
 def test_executive_status_considers_project_projection_delay():
     service = PlanningService()
     workspace = {

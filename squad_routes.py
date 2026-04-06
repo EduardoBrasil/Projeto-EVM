@@ -9,10 +9,12 @@ import os
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
+from formula_helpers import calculate_file_member_monthly_cost, calculate_manual_member_monthly_cost
 from models import SquadLoader
 from route_helpers import (
     ensure_current_squad_workspace,
     get_current_username,
+    parse_brazilian_float,
     get_squads_data,
     save_current_squad_workspace,
 )
@@ -30,15 +32,43 @@ def allowed_file(filename):
 def _recalculate_workspace_costs(workspace):
     file_members = workspace.get("squad_members_from_file", [])
     members = workspace.get("members", [])
-    total_file_cost = sum(member.get("total_grupo", 0) for member in file_members)
+
+    recalculated_file_members = []
+    total_file_cost = 0.0
+    for member in file_members:
+        updated_member = dict(member)
+        updated_member["total_grupo"] = round(
+            calculate_file_member_monthly_cost(
+                updated_member.get("qtde", 1),
+                updated_member.get("preco_mhh", 0),
+            ),
+            2,
+        )
+        total_file_cost += updated_member["total_grupo"]
+        recalculated_file_members.append(updated_member)
+
     manual_cost = sum(
-        (member.get("salary", 0) + 160 * member.get("hourly", 0)) * member.get("quantity", 1)
+        calculate_manual_member_monthly_cost(
+            member.get("salary", 0),
+            member.get("hourly", 0),
+            member.get("quantity", 1),
+        )
         for member in members
     )
-    squad_cost = total_file_cost + manual_cost
+    infrastructure_cost = round(parse_brazilian_float(workspace.get("infrastructure_cost", 0)), 2)
+    health_plan_cost = round(parse_brazilian_float(workspace.get("health_plan_cost", 0)), 2)
+    meal_allowance_cost = round(parse_brazilian_float(workspace.get("meal_allowance_cost", 0)), 2)
+    additional_costs_total = round(infrastructure_cost + health_plan_cost + meal_allowance_cost, 2)
+    squad_cost = total_file_cost + manual_cost + additional_costs_total
+
+    workspace["infrastructure_cost"] = infrastructure_cost
+    workspace["health_plan_cost"] = health_plan_cost
+    workspace["meal_allowance_cost"] = meal_allowance_cost
+    workspace["additional_costs_total"] = additional_costs_total
+    workspace["squad_members_from_file"] = recalculated_file_members
     workspace["squad_total_cost"] = total_file_cost
     workspace["squad_cost"] = squad_cost
-    return total_file_cost, manual_cost, squad_cost
+    return total_file_cost, manual_cost, additional_costs_total, squad_cost
 
 
 def register_squad_routes(routes_bp, upload_folder):
@@ -141,6 +171,10 @@ def register_squad_routes(routes_bp, upload_folder):
         current_squad = session.get("current_squad_name", "Squad desconhecida")
         members_from_file = workspace.get("squad_members_from_file", [])
         total_file_cost = workspace.get("squad_total_cost", 0)
+        workspace.setdefault("infrastructure_cost", 0)
+        workspace.setdefault("health_plan_cost", 0)
+        workspace.setdefault("meal_allowance_cost", 0)
+        workspace.setdefault("additional_costs_total", 0)
 
         if request.method == "POST":
             role = request.form.get("role", "").strip()
@@ -170,7 +204,7 @@ def register_squad_routes(routes_bp, upload_folder):
                 save_current_squad_workspace(workspace)
 
         members = workspace.get("members", [])
-        total_file_cost, manual_cost, squad_cost = _recalculate_workspace_costs(workspace)
+        total_file_cost, manual_cost, additional_costs_total, squad_cost = _recalculate_workspace_costs(workspace)
         save_current_squad_workspace(workspace)
 
         return render_template(
@@ -181,7 +215,25 @@ def register_squad_routes(routes_bp, upload_folder):
             squad_cost=squad_cost,
             file_cost=total_file_cost,
             manual_cost=manual_cost,
+            infrastructure_cost=workspace.get("infrastructure_cost", 0),
+            health_plan_cost=workspace.get("health_plan_cost", 0),
+            meal_allowance_cost=workspace.get("meal_allowance_cost", 0),
+            additional_costs_total=additional_costs_total,
         )
+
+    @routes_bp.route("/update_additional_costs", methods=["POST"])
+    def update_additional_costs():
+        workspace = ensure_current_squad_workspace()
+        if workspace is None:
+            return redirect(url_for("routes.select_squad"))
+
+        workspace["infrastructure_cost"] = parse_brazilian_float(request.form.get("infrastructure_cost", 0))
+        workspace["health_plan_cost"] = parse_brazilian_float(request.form.get("health_plan_cost", 0))
+        workspace["meal_allowance_cost"] = parse_brazilian_float(request.form.get("meal_allowance_cost", 0))
+        _recalculate_workspace_costs(workspace)
+        save_current_squad_workspace(workspace)
+        flash("Custos complementares da squad atualizados com sucesso.", "success")
+        return redirect(url_for("routes.setup"))
 
     @routes_bp.route("/update_file_members", methods=["POST"])
     def update_file_members():
@@ -199,7 +251,6 @@ def register_squad_routes(routes_bp, upload_folder):
 
             updated_member = dict(member)
             updated_member["qtde"] = quantity
-            updated_member["total_grupo"] = quantity * updated_member.get("preco_mhh", 0) * 8 * 5 * 4.2
             updated_members.append(updated_member)
 
         workspace["squad_members_from_file"] = updated_members

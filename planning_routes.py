@@ -7,6 +7,8 @@ from __future__ import annotations
 from flask import flash, redirect, render_template, request, session, url_for
 
 from route_helpers import (
+    build_baseline_snapshot,
+    calculate_baseline_comparison,
     build_sprint_record,
     calculate_release_projection,
     calculate_total_release_points,
@@ -29,9 +31,6 @@ def register_planning_routes(routes_bp):
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
 
-        if workspace.get("squad_cost", 0) <= 0:
-            return redirect(url_for("routes.setup"))
-
         workspace.setdefault("releases", [])
         workspace["releases"] = normalize_releases(workspace.get("releases", []))
         workspace.setdefault("history", [])
@@ -44,7 +43,12 @@ def register_planning_routes(routes_bp):
             flash("As releases ja foram configuradas e estao bloqueadas para edicao.", "warning")
 
         planning_totals = get_planning_totals(workspace)
-        squad_cost = workspace.get("squad_cost", 0)
+        squad_cost = planning_totals["squad_cost"]
+        workspace["squad_cost"] = squad_cost
+        if squad_cost <= 0:
+            save_current_squad_workspace(workspace)
+            return redirect(url_for("routes.setup"))
+
         current_squad = session.get("current_squad_name", "Squad")
         releases = list(enumerate(workspace.get("releases", []), 1))
         total_points = planning_totals["total_release_points"] if releases else 0
@@ -54,6 +58,8 @@ def register_planning_routes(routes_bp):
         value_per_point = planning_totals["value_per_point"]
         default_sprint_weeks = planning_totals["default_sprint_weeks"]
         current_component_count = planning_totals["current_component_count"]
+        baseline = workspace.get("baseline")
+        baseline_comparison = calculate_baseline_comparison(workspace, baseline)
 
         history = recalculate_history(
             workspace.get("history", []),
@@ -95,6 +101,47 @@ def register_planning_routes(routes_bp):
             projection=projection,
             default_sprint_weeks=default_sprint_weeks,
             current_component_count=current_component_count,
+            baseline=baseline,
+            baseline_comparison=baseline_comparison,
+        )
+
+    @routes_bp.route("/create_baseline", methods=["POST"])
+    def create_baseline():
+        workspace = ensure_current_squad_workspace()
+        if workspace is None:
+            return redirect(url_for("routes.select_squad"))
+
+        planning_totals = get_planning_totals(workspace)
+        if not planning_totals["releases"]:
+            flash("Configure as releases antes de gerar a baseline.", "warning")
+            return redirect(url_for("routes.plan"))
+
+        workspace["baseline"] = build_baseline_snapshot(workspace)
+        save_current_squad_workspace(workspace)
+        flash("Baseline da squad atualizada com sucesso.", "success")
+        return redirect(url_for("routes.plan"))
+
+    @routes_bp.route("/baseline", methods=["GET"])
+    def baseline():
+        workspace = ensure_current_squad_workspace()
+        if workspace is None:
+            return redirect(url_for("routes.select_squad"))
+
+        planning_totals = get_planning_totals(workspace)
+        workspace["squad_cost"] = planning_totals["squad_cost"]
+        save_current_squad_workspace(workspace)
+
+        return render_template(
+            "baseline.html",
+            current_squad=session.get("current_squad_name", "Squad"),
+            squad_cost=planning_totals["squad_cost"],
+            sprint_cost=planning_totals["sprint_cost"],
+            bac=planning_totals["bac"],
+            total_points=planning_totals["total_release_points"],
+            total_sprints=planning_totals["total_release_sprints"],
+            current_component_count=planning_totals["current_component_count"],
+            baseline=workspace.get("baseline"),
+            baseline_comparison=calculate_baseline_comparison(workspace, workspace.get("baseline")),
         )
 
     @routes_bp.route("/update_sprint_settings", methods=["POST"])
@@ -211,10 +258,13 @@ def register_planning_routes(routes_bp):
         workspace = ensure_current_squad_workspace()
         if workspace is None:
             return redirect(url_for("routes.select_squad"))
-        if workspace.get("squad_cost", 0) <= 0:
-            return redirect(url_for("routes.setup"))
 
         planning_totals = get_planning_totals(workspace)
+        workspace["squad_cost"] = planning_totals["squad_cost"]
+        if planning_totals["squad_cost"] <= 0:
+            save_current_squad_workspace(workspace)
+            return redirect(url_for("routes.setup"))
+
         releases = planning_totals["releases"]
         if not releases:
             flash("Por favor, configure as releases primeiro.", "warning")
@@ -239,7 +289,7 @@ def register_planning_routes(routes_bp):
             workspace.get("history", []),
             value_per_point,
             total_release_points,
-            workspace.get("squad_cost", 0),
+            planning_totals["squad_cost"],
             current_component_count,
         )
         sprint_number = len(history) + 1
@@ -261,7 +311,7 @@ def register_planning_routes(routes_bp):
             planned_value=sprint_planned_value,
             sprint_weeks=sprint_weeks,
             component_count=current_component_count,
-            squad_cost=workspace.get("squad_cost", 0),
+            squad_cost=planning_totals["squad_cost"],
         )
 
         history.append(record)
@@ -273,7 +323,7 @@ def register_planning_routes(routes_bp):
             history,
             final_value_per_point,
             final_total_release_points,
-            workspace.get("squad_cost", 0),
+            planning_totals["squad_cost"],
             current_component_count,
         )
         save_current_squad_workspace(workspace)
@@ -309,6 +359,7 @@ def register_planning_routes(routes_bp):
             return redirect(url_for("routes.plan"))
 
         planning_totals = get_planning_totals(workspace)
+        workspace["squad_cost"] = planning_totals["squad_cost"]
         total_release_sprints = sum(release.get("sprints", 0) for release in releases)
         sprint_cost = planning_totals["sprint_cost"]
         bac = sprint_cost * total_release_sprints
@@ -318,7 +369,7 @@ def register_planning_routes(routes_bp):
             history,
             value_per_point,
             total_release_points,
-            workspace.get("squad_cost", 0),
+            planning_totals["squad_cost"],
             planning_totals["current_component_count"],
         )
         save_current_squad_workspace(workspace)
@@ -340,6 +391,7 @@ def register_planning_routes(routes_bp):
         history.pop(sprint_index)
         releases = normalize_releases(workspace.get("releases", []))
         planning_totals = get_planning_totals(workspace)
+        workspace["squad_cost"] = planning_totals["squad_cost"]
         total_release_sprints = sum(release.get("sprints", 0) for release in releases)
         sprint_cost = planning_totals["sprint_cost"]
         bac = sprint_cost * total_release_sprints
@@ -349,7 +401,7 @@ def register_planning_routes(routes_bp):
             history,
             value_per_point,
             total_release_points,
-            workspace.get("squad_cost", 0),
+            planning_totals["squad_cost"],
             planning_totals["current_component_count"],
         )
         save_current_squad_workspace(workspace)
