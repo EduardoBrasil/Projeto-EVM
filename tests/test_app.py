@@ -3,6 +3,7 @@ from pathlib import Path
 
 from app import format_currency
 from storage import upsert_squad
+from tests.conftest import build_squad_csv_bytes
 
 
 def test_format_currency_handles_numbers_and_invalid_values():
@@ -37,14 +38,9 @@ def test_persistence_keeps_uploaded_squad_data_between_clients(app):
         session["user_id"] = 1
         session["username"] = "alice"
 
-    csv_bytes = (
-        "SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO\n"
-        "Alpha,Dev,Backend,1,10,20,0\n"
-    ).encode("utf-8")
-
     upload_response = first_client.post(
         "/upload",
-        data={"file": (io.BytesIO(csv_bytes), "squads.csv")},
+        data={"file": (io.BytesIO(build_squad_csv_bytes()), "squads.csv")},
         content_type="multipart/form-data",
     )
 
@@ -67,13 +63,9 @@ def test_persistence_is_isolated_by_username(app):
         session["user_id"] = 1
         session["username"] = "alice"
 
-    csv_bytes = (
-        "SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO\n"
-        "Alpha,Dev,Backend,1,10,20,0\n"
-    ).encode("utf-8")
     first_client.post(
         "/upload",
-        data={"file": (io.BytesIO(csv_bytes), "alice.csv")},
+        data={"file": (io.BytesIO(build_squad_csv_bytes()), "alice.csv")},
         content_type="multipart/form-data",
     )
 
@@ -94,14 +86,9 @@ def test_upload_file_is_removed_after_processing(app):
         session["user_id"] = 1
         session["username"] = "alice"
 
-    csv_bytes = (
-        "SQUAD,CARGO,ÃREA,QTDE,Custo M H/H,PreÃ§o M/HH,TOTAL GRUPO\n"
-        "Alpha,Dev,Backend,1,10,20,0\n"
-    ).encode("utf-8")
-
     response = client.post(
         "/upload",
-        data={"file": (io.BytesIO(csv_bytes), "squads.csv")},
+        data={"file": (io.BytesIO(build_squad_csv_bytes()), "squads.csv")},
         content_type="multipart/form-data",
     )
 

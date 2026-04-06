@@ -51,6 +51,15 @@ def sample_squads_data():
     }
 
 
+def build_squad_csv_bytes(rows=None):
+    rows = rows or [
+        ("Alpha", "Dev", "Backend", 1, 10, 20, 0),
+    ]
+    header = "SQUAD,CARGO,\u00c1REA,QTDE,Custo M H/H,Pre\u00e7o M/HH,TOTAL GRUPO"
+    body = "\n".join(",".join(map(str, row)) for row in rows)
+    return f"{header}\n{body}\n".encode("utf-8")
+
+
 def seed_session(client, squads_data, current_squad="Alpha", workspace=None):
     with client.session_transaction() as session:
         session["user_id"] = 1

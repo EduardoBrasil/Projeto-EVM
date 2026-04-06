@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 
 import routes
-from tests.conftest import seed_session
+from tests.conftest import build_squad_csv_bytes, seed_session
 
 
 def planning_workspace():
@@ -55,19 +55,83 @@ def test_upload_page_and_invalid_extension(client):
 
 def test_upload_valid_csv_populates_session(client):
     authenticate_session(client)
-    csv_bytes = (
-        "SQUAD,CARGO,ÁREA,QTDE,Custo M H/H,Preço M/HH,TOTAL GRUPO\n"
-        "Alpha,Dev,Backend,1,10,20,0\n"
-    ).encode("utf-8")
 
     response = client.post(
         "/upload",
-        data={"file": (io.BytesIO(csv_bytes), "squads.csv")},
+        data={"file": (io.BytesIO(build_squad_csv_bytes()), "squads.csv")},
         content_type="multipart/form-data",
     )
 
     assert response.status_code == 302
     assert response.location.endswith("/select_squad")
+
+
+def test_end_to_end_workflow_supports_utf8_csv_upload(client):
+    register_response = client.post(
+        "/register",
+        data={"username": "alice", "password": "secret1", "confirm_password": "secret1"},
+    )
+    assert register_response.status_code == 302
+    assert register_response.location.endswith("/upload")
+
+    upload_response = client.post(
+        "/upload",
+        data={"file": (io.BytesIO(build_squad_csv_bytes()), "squads.csv")},
+        content_type="multipart/form-data",
+    )
+    assert upload_response.status_code == 302
+    assert upload_response.location.endswith("/select_squad")
+
+    with client.session_transaction() as session:
+        assert session["squads_data"]["Alpha"]["members"][0]["area"] == "Backend"
+
+    select_response = client.post("/select_squad", data={"selected_squad": "Alpha"})
+    assert select_response.status_code == 302
+    assert select_response.location.endswith("/setup")
+
+    setup_response = client.get("/setup")
+    assert setup_response.status_code == 200
+
+    add_member_response = client.post(
+        "/setup",
+        data={"role": "QA", "function": "Quality", "salary": "1000", "hourly": "10", "quantity": "1"},
+        follow_redirects=True,
+    )
+    assert add_member_response.status_code == 200
+    assert b"QA" in add_member_response.data
+
+    assert client.get("/dashboard").status_code == 200
+    assert client.get("/plan").status_code == 200
+
+    create_baseline_response = client.post("/create_baseline")
+    assert create_baseline_response.status_code == 302
+    assert create_baseline_response.location.endswith("/plan")
+
+    add_sprint_response = client.post(
+        "/add_sprint",
+        data={
+            "sprint_plan_points": 10,
+            "sprint_done_points": 8,
+            "sprint_added_points": 1,
+            "sprint_planned_value": "100,00",
+            "sprint_actual_cost": "90,00",
+        },
+    )
+    assert add_sprint_response.status_code == 302
+    assert add_sprint_response.location.endswith("/plan")
+
+    baseline_response = client.get("/baseline")
+    assert baseline_response.status_code == 200
+    assert b"Baseline do Projeto" in baseline_response.data
+    assert b"PDF Projeto" in baseline_response.data
+
+    cumulative_chart_response = client.get("/generate_cumulative_chart")
+    assert cumulative_chart_response.status_code == 200
+    assert cumulative_chart_response.mimetype == "image/png"
+
+    project_report_response = client.get("/export_project_report")
+    assert project_report_response.status_code == 200
+    assert project_report_response.mimetype == "application/pdf"
 
 
 def test_auth_register_login_and_logout(client):
