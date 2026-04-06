@@ -5,8 +5,10 @@ app.py - Aplicacao Flask para EVM (Earned Value Management).
 from __future__ import annotations
 
 import os
+import secrets
+from datetime import timedelta
 
-from flask import Flask, redirect, request, session, url_for
+from flask import Flask, abort, redirect, request, session, url_for
 
 from routes import routes_bp
 from storage import init_db, load_all_squads, load_all_workspaces
@@ -24,10 +26,18 @@ def format_currency(value):
 def create_app(test_config=None):
     """Factory Method para construir a aplicacao Flask."""
     app = Flask(__name__)
-    app.secret_key = "dev-secret-key-change-in-production"
-    app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
-    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
-    app.config["DATABASE_PATH"] = os.path.join(os.path.dirname(__file__), "evm.db")
+    app.config.update(
+        SECRET_KEY=os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32),
+        SESSION_COOKIE_NAME="evm_session",
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("FLASK_SESSION_COOKIE_SECURE", "0") == "1",
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+        UPLOAD_FOLDER=os.path.join(os.path.dirname(__file__), "uploads"),
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024,
+        MAX_FORM_MEMORY_SIZE=16 * 1024 * 1024,
+        DATABASE_PATH=os.path.join(os.path.dirname(__file__), "evm.db"),
+    )
 
     if test_config:
         app.config.update(test_config)
@@ -42,6 +52,22 @@ def create_app(test_config=None):
         "routes.register",
         "static",
     }
+
+    @app.before_request
+    def protect_csrf():
+        session.setdefault("_csrf_token", secrets.token_urlsafe(32))
+
+        if app.config.get("TESTING"):
+            return None
+
+        if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+            return None
+
+        request_token = request.form.get("_csrf_token") or request.headers.get("X-CSRF-Token")
+        session_token = session.get("_csrf_token")
+        if not request_token or not session_token or request_token != session_token:
+            abort(400, description="Requisicao invalida: token CSRF ausente ou incorreto.")
+        return None
 
     @app.before_request
     def hydrate_session_from_database():
@@ -67,6 +93,7 @@ def create_app(test_config=None):
 
     @app.context_processor
     def inject_navigation_context():
+        csrf_token = session.setdefault("_csrf_token", secrets.token_urlsafe(32))
         squads_data = session.get("squads_data")
         username = session.get("username")
         if username and not squads_data:
@@ -78,6 +105,7 @@ def create_app(test_config=None):
             "nav_current_squad": session.get("current_squad_name"),
             "nav_username": username,
             "nav_is_authenticated": bool(session.get("user_id") and username),
+            "csrf_token": csrf_token,
         }
 
     return app
@@ -87,4 +115,4 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "0") == "1")

@@ -62,6 +62,7 @@
                                     Editar
                                 </button>
                                 <form method="POST" action="{{ url_for('routes.delete_sprint', sprint_no=record.sprint_no) }}" style="display: inline;">
+                                    {% include "partials/layout/csrf_input.html" %}
                                     <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Excluir a sprint #{{ record.sprint_no }}?');">
                                         Excluir
                                     </button>
@@ -72,6 +73,7 @@
                     <tr class="collapse" id="edit-sprint-{{ record.sprint_no }}">
                         <td colspan="14" class="bg-light">
                             <form method="POST" action="{{ url_for('routes.update_sprint', sprint_no=record.sprint_no) }}" class="row g-3 align-items-end">
+                                {% include "partials/layout/csrf_input.html" %}
                                 <div class="col-md-3">
                                     <label class="form-label">Pontos Planejados</label>
                                     <input type="number" class="form-control form-control-sm" name="sprint_plan_points" value="{{ record.plan_points }}" min="0" step="1" required>

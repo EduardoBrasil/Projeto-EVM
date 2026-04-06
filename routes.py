@@ -12,6 +12,7 @@ from auth_routes import register_auth_routes
 from chart_routes import register_chart_routes
 from dashboard_routes import register_dashboard_routes
 from planning_routes import register_planning_routes
+from report_routes import register_report_routes
 from route_helpers import (
     build_sprint_record,
     calculate_release_projection,
@@ -44,3 +45,4 @@ register_auth_routes(routes_bp)
 register_squad_routes(routes_bp, UPLOAD_FOLDER)
 register_planning_routes(routes_bp)
 register_chart_routes(routes_bp)
+register_report_routes(routes_bp)

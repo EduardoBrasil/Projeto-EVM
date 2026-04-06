@@ -8,6 +8,7 @@
     <div class="card-body collapse show" id="plan-releases-body">
         {% if not releases %}
         <form method="POST" action="{{ url_for('routes.plan') }}" class="row g-3 align-items-end">
+            {% include "partials/layout/csrf_input.html" %}
             <div class="col-md-6">
                 <label class="form-label">Quantidade de Releases</label>
                 <input type="number" class="form-control" name="num_releases" placeholder="Ex: 3" min="1" step="1" required>

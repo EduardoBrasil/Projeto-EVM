@@ -56,7 +56,6 @@ O app foi construido para apoiar o acompanhamento de squads e projetos com EVM (
   - custo da squad
   - custo base da sprint
   - BAC
-  - valor por ponto
 - Sugestao automatica de `PV` e `AC` com base no custo da sprint
 
 ### 8. Registro de Sprint
@@ -120,9 +119,9 @@ O app calcula e exibe:
 ### 14. Dashboard da Squad
 
 - Resumo executivo do projeto
-- Ultima medicao
+- Ritmo das ultimas sprints
 - Historico de sprints
-- Acompanhamento do projeto
+- Projecao consolidada da release
 
 ### 15. Baseline v1
 
@@ -134,9 +133,15 @@ O app calcula e exibe:
   - custo da squad
   - custo por sprint
   - BAC
-  - valor por ponto
   - custos adicionais
 - Comparacao entre baseline e estado atual
+
+### 16. Relatorios Executivos em PDF
+
+- Exportacao de relatorio executivo por projeto
+- Conteudo unificado para lideranca executiva e tecnica
+- Disponivel a partir do dashboard da squad e da aba de baseline
+- Download em PDF com semaforo visual de risco, indicadores do projeto, historico de sprints e graficos de apoio
 
 ## Guia de Uso
 
@@ -240,10 +245,37 @@ Use para comparar rapidamente todas as squads.
 Use para analisar a squad ativa em mais profundidade:
 
 - status atual
-- ultima medicao
-- baseline
+- ritmo das ultimas sprints
 - historico de sprints
-- acompanhamento do projeto
+- projecao consolidada da release
+
+## Como Exportar Relatorios Executivos
+
+No `Dashboard da Squad` ou na aba `Baseline do Projeto`:
+
+1. clique em `PDF Projeto`
+2. o sistema gera um unico documento consolidado da release
+
+### Estrutura do Relatorio
+
+O documento unico do projeto contem:
+
+- capa executiva com status, custo, prazo, escopo e semaforo do projeto
+- leitura de governanca com desvios e baseline
+- uma pagina por sprint, mostrando a evolucao cumulativa da release
+- graficos de PV, EV e AC, CPI e SPI
+
+### Paginas de Sprint
+
+Cada sprint dentro do relatorio mostra:
+
+- semaforo visual da sprint
+- status da ultima sprint
+- status acumulado do projeto
+- PV, EV e AC da sprint
+- CPI e SPI da ultima sprint
+- conclusao acumulada do projeto
+- impacto da sprint no status geral da release
 
 ## Observacoes Importantes
 
@@ -252,6 +284,7 @@ Use para analisar a squad ativa em mais profundidade:
 - Pontos adicionados durante as sprints entram no escopo atual da release.
 - Alteracoes de custo da squad impactam o planejamento automaticamente.
 - A baseline atual e unica por squad nesta versao.
+- Os relatorios em PDF usam sempre a squad ativa no momento da exportacao.
 
 ## Proximos Passos Naturais
 
@@ -259,6 +292,5 @@ Se o produto evoluir, os proximos recursos recomendados sao:
 
 - versionamento de baseline
 - motivo da mudanca de baseline
-- exportacao de relatorios
 - alertas visuais de desvio
 - historico de auditoria por alteracao

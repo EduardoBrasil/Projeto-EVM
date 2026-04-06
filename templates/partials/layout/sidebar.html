@@ -60,6 +60,7 @@
         <div class="sidebar-label">Sessao</div>
         <div class="small text-white-50 mb-3">{{ nav_username }}</div>
         <form method="POST" action="{{ url_for('routes.logout') }}">
+            {% include "partials/layout/csrf_input.html" %}
             <button type="submit" class="btn btn-outline-light w-100">Sair</button>
         </form>
     </div>

@@ -14,12 +14,10 @@
         </p>
         <div class="quick-actions mt-4">
             <a class="btn btn-primary" href="{{ url_for('routes.plan') }}">Abrir planejamento</a>
-            <a class="btn btn-outline-secondary" href="{{ url_for('routes.baseline') }}">Abrir baseline</a>
             <a class="btn btn-outline-secondary" href="{{ url_for('routes.setup') }}">Editar composicao</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.baseline') }}">Abrir baseline</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.export_project_report') }}">Exportar relatorio do projeto</a>
             <a class="btn btn-outline-primary" href="{{ url_for('routes.dashboard') }}">Voltar ao dashboard geral</a>
-            <form method="POST" action="{{ url_for('routes.delete_squad', squad_name=current_summary.name) }}" class="inline-form" onsubmit="return confirm('Deseja remover a squad {{ current_summary.name }}? Esta acao nao pode ser desfeita.');">
-                <button type="submit" class="btn btn-outline-danger">Remover squad</button>
-            </form>
         </div>
     </div>
     <div class="summary-strip">

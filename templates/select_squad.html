@@ -33,6 +33,7 @@
                                 <div class="table-actions">
                                     <a href="{{ url_for('routes.squad_dashboard', squad_name=squad_name) }}" class="btn btn-sm btn-outline-secondary">Abrir</a>
                                     <form method="POST" action="{{ url_for('routes.delete_squad', squad_name=squad_name) }}" onsubmit="return confirm('Deseja remover a squad {{ squad_name }}? Esta acao nao pode ser desfeita.');">
+                                        {% include "partials/layout/csrf_input.html" %}
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
                                     </form>
                                 </div>
@@ -49,6 +50,7 @@
         <div class="card-header">Ativar Squad</div>
         <div class="card-body">
             <form method="POST" class="row g-3">
+                {% include "partials/layout/csrf_input.html" %}
                 <div class="col-12">
                     <label class="form-label">Squad</label>
                     <select class="form-select" name="selected_squad" required>
@@ -74,6 +76,7 @@
         <div class="card-header">Nova Squad</div>
         <div class="card-body">
             <form method="POST" class="row g-3">
+                {% include "partials/layout/csrf_input.html" %}
                 <input type="hidden" name="create_squad" value="1">
                 <div class="col-12">
                     <label class="form-label">Nome da nova squad</label>

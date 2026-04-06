@@ -1,7 +1,16 @@
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+.coverage.*
+*.db
+*.db-*
+*.sqlite3
 uploads/
+uploads/*
 .vscode/
 *.log
 .env
