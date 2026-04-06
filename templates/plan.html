@@ -14,8 +14,12 @@
 <div class="mb-3 quick-actions">
     <a href="{{ url_for('routes.setup') }}" class="btn btn-outline-primary btn-sm">Voltar a configuracao</a>
     <a href="{{ url_for('routes.baseline') }}" class="btn btn-outline-secondary btn-sm">Abrir baseline</a>
-    <a href="{{ url_for('routes.reset') }}" class="btn btn-outline-danger btn-sm">Novo upload</a>
+    <form method="POST" action="{{ url_for('routes.reset') }}" class="inline-form">
+        {% include "partials/layout/csrf_input.html" %}
+        <button type="submit" class="btn btn-outline-danger btn-sm">Novo upload</button>
+    </form>
     <form method="POST" action="{{ url_for('routes.create_baseline') }}" class="inline-form">
+        {% include "partials/layout/csrf_input.html" %}
         <button type="submit" class="btn btn-outline-secondary btn-sm">
             {% if baseline %}Atualizar baseline{% else %}Gerar baseline{% endif %}
         </button>
@@ -34,6 +38,7 @@
         </div>
         <div class="card-body collapse show" id="plan-settings-body">
             <form method="POST" action="{{ url_for('routes.update_sprint_settings') }}" class="row g-3 align-items-end">
+                {% include "partials/layout/csrf_input.html" %}
                 <div class="col-md-7">
                     <label class="form-label">Semanas por sprint</label>
                     <input type="number" class="form-control" name="default_sprint_weeks" value="{{ default_sprint_weeks }}" step="0.5" min="0.5" required>

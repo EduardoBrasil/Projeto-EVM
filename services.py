@@ -477,8 +477,8 @@ class PlanningService:
             "projected_remaining_sprints": round(projected_remaining_sprints, 2),
         }
 
-    def calculate_project_status(self, projection, fallback_status="Não iniciado"):
-        """Define o status executivo do projeto com base na projeção consolidada."""
+    def calculate_project_status(self, projection, fallback_status="Nao iniciado"):
+        """Define o status executivo do projeto com base na projecao consolidada."""
         if not projection:
             return fallback_status
 
@@ -486,12 +486,12 @@ class PlanningService:
         over_budget = projection.get("cost_variance_at_completion", 0) > 0
 
         if delayed and over_budget:
-            return "⚠️ Atenção: Acima do custo e atrasado"
+            return "Atencao: Acima do custo e atrasado"
         if delayed:
-            return "⚠️ Atenção: Atrasado"
+            return "Atencao: Atrasado"
         if over_budget:
-            return "⚠️ Atenção: Acima do custo"
-        return "✓ OK"
+            return "Atencao: Acima do custo"
+        return "OK"
 
     def calculate_planning_totals(self, workspace):
         releases = self.normalize_releases(workspace.get("releases", []))
@@ -583,7 +583,7 @@ class PlanningService:
             "completion_percentage": last_metrics.get("completion_percentage", 0) if last_metrics else 0,
             "status": self.calculate_project_status(
                 projection,
-                last_metrics.get("status", "Não iniciado") if last_metrics else "Não iniciado",
+                last_metrics.get("status", "Nao iniciado") if last_metrics else "Nao iniciado",
             ),
             "history": context.history,
             "last_metrics": last_metrics,
@@ -591,3 +591,4 @@ class PlanningService:
             "baseline": baseline,
             "baseline_comparison": baseline_comparison,
         }
+

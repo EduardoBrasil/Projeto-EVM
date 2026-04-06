@@ -14,7 +14,9 @@
         <div class="quick-actions mt-4">
             <a class="btn btn-primary" href="{{ url_for('routes.plan') }}">Voltar ao planejamento</a>
             <a class="btn btn-outline-secondary" href="{{ url_for('routes.squad_dashboard', squad_name=current_squad) }}">Abrir dashboard da squad</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('routes.export_project_report') }}">PDF Projeto</a>
             <form method="POST" action="{{ url_for('routes.create_baseline') }}" class="inline-form">
+                {% include "partials/layout/csrf_input.html" %}
                 <button type="submit" class="btn btn-outline-secondary">
                     {% if baseline %}Atualizar baseline{% else %}Gerar baseline{% endif %}
                 </button>

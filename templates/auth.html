@@ -73,6 +73,7 @@
             {% include "partials/layout/flash_messages.html" %}
 
             <form method="POST" class="auth-form">
+                {% include "partials/layout/csrf_input.html" %}
                 <div>
                     <label class="form-label">Usuario</label>
                     <input type="text" class="form-control form-control-lg auth-input" name="username" value="{{ username or '' }}" placeholder="Seu usuario" required autofocus>

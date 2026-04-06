@@ -236,6 +236,8 @@ def test_charts_and_navigation_routes(client, sample_squads_data):
     assert client.get("/generate_cumulative_chart").mimetype == "image/png"
     assert client.get("/generate_cpi_chart").mimetype == "image/png"
     assert client.get("/generate_spi_chart").mimetype == "image/png"
+    assert client.get("/export_sprint_report").mimetype == "application/pdf"
+    assert client.get("/export_project_report").mimetype == "application/pdf"
 
 
 def test_member_removal_and_reset(client, sample_squads_data):
@@ -246,7 +248,7 @@ def test_member_removal_and_reset(client, sample_squads_data):
     assert client.post("/remove_member/0").status_code == 302
     assert client.post("/remove_file_member/0").status_code == 302
     assert client.post("/delete_squad/Alpha").status_code == 302
-    assert client.get("/reset").status_code == 302
+    assert client.post("/reset").status_code == 302
 
 
 def test_route_helpers_cover_parsing_and_workspace_branches(app):

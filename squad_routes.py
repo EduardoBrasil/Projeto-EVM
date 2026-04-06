@@ -5,6 +5,7 @@ squad_routes.py - Rotas de upload, selecao e configuracao de squad.
 from __future__ import annotations
 
 import os
+import secrets
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
@@ -86,7 +87,7 @@ def register_squad_routes(routes_bp, upload_folder):
 
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                filepath = os.path.join(upload_folder, filename)
+                filepath = os.path.join(upload_folder, f"{secrets.token_hex(8)}_{filename}")
                 file.save(filepath)
 
                 try:
@@ -107,8 +108,15 @@ def register_squad_routes(routes_bp, upload_folder):
                     )
                     return redirect(url_for("routes.select_squad"))
                 except Exception as exc:
-                    flash(f"Erro ao processar arquivo: {str(exc)}", "error")
+                    current_app.logger.exception("Erro ao processar upload de squads: %s", exc)
+                    flash("Erro ao processar arquivo. Verifique o formato e tente novamente.", "error")
                     return redirect(request.url)
+                finally:
+                    try:
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                    except OSError:
+                        pass
 
             flash("Formato de arquivo nao permitido. Use Excel (.xlsx) ou CSV.", "error")
 
@@ -354,7 +362,7 @@ def register_squad_routes(routes_bp, upload_folder):
         flash(f"Squad '{squad_name}' removida com sucesso.", "success")
         return redirect(url_for("routes.select_squad"))
 
-    @routes_bp.route("/reset", methods=["GET"])
+    @routes_bp.route("/reset", methods=["POST"])
     def reset():
         clear_all_data(current_app.config["DATABASE_PATH"], get_current_username())
         session.pop("squads_data", None)

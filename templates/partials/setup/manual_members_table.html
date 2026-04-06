@@ -1,5 +1,6 @@
 {% if members %}
 <form method="POST" action="{{ url_for('routes.update_manual_members') }}">
+    {% include "partials/layout/csrf_input.html" %}
     <div class="table-responsive">
         <table class="table table-hover">
             <thead>
@@ -45,7 +46,9 @@
     </div>
 </form>
 {% for member in members %}
-<form id="remove-manual-member-{{ loop.index0 }}" method="POST" action="{{ url_for('routes.remove_member', member_index=loop.index0) }}"></form>
+<form id="remove-manual-member-{{ loop.index0 }}" method="POST" action="{{ url_for('routes.remove_member', member_index=loop.index0) }}">
+    {% include "partials/layout/csrf_input.html" %}
+</form>
 {% endfor %}
 {% else %}
 <div class="empty-state">Nenhum membro adicional cadastrado para esta squad.</div>

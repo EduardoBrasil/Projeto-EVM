@@ -42,6 +42,7 @@
         <div class="card-body">
             <p class="text-muted mb-4">Edite aqui a composicao base da squad. Qualquer alteracao salva atualiza o custo mensal e refletira automaticamente no custo da sprint.</p>
             <form method="POST" action="{{ url_for('routes.update_additional_costs') }}" class="row g-3 align-items-end mb-4">
+                {% include "partials/layout/csrf_input.html" %}
                 <div class="col-md-4">
                     <label class="form-label">Custo de Infraestrutura</label>
                     <input type="text" class="form-control" name="infrastructure_cost" value="{{ '{:,.2f}'.format(infrastructure_cost).replace(',', 'X').replace('.', ',').replace('X', '.') }}" placeholder="0,00">

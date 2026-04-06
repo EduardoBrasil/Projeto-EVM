@@ -53,26 +53,32 @@ Set-ExecutionPolicy -Scope Process Bypass
 python -m pip install -r requirements.txt
 ```
 
-4. Suba a aplicacao:
+4. Defina uma chave secreta para a sessao:
+
+```powershell
+$env:FLASK_SECRET_KEY="troque-por-uma-chave-longa-e-aleatoria"
+```
+
+5. Suba a aplicacao:
 
 ```powershell
 python app.py
 ```
 
-5. Alternativa mais segura, sem depender da ativacao da virtualenv:
+6. Alternativa mais segura, sem depender da ativacao da virtualenv:
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe app.py
 ```
 
-6. Atalho de inicializacao em PowerShell:
+7. Atalho de inicializacao em PowerShell:
 
 ```powershell
 .\run.ps1
 ```
 
-7. Acesse:
+8. Acesse:
 
 ```text
 http://127.0.0.1:5000
@@ -96,3 +102,4 @@ Para rodar a suite com cobertura:
 - Cada usuario possui suas squads e workspaces persistidos localmente em SQLite.
 - O frontend usa templates parciais para reduzir repeticoes.
 - Se aparecer `ModuleNotFoundError`, quase sempre significa que a aplicacao foi executada fora da `.venv`.
+- Em producao, use `FLASK_SECRET_KEY` e `FLASK_SESSION_COOKIE_SECURE=1`.
